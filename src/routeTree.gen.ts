@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MissionControlRouteImport } from './routes/mission-control'
+import { Route as IntelligenceRouteImport } from './routes/intelligence'
 import { Route as FoundationRouteImport } from './routes/foundation'
 import { Route as IndexRouteImport } from './routes/index'
 
 const MissionControlRoute = MissionControlRouteImport.update({
   id: '/mission-control',
   path: '/mission-control',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntelligenceRoute = IntelligenceRouteImport.update({
+  id: '/intelligence',
+  path: '/intelligence',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FoundationRoute = FoundationRouteImport.update({
@@ -32,30 +38,34 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
+  '/intelligence': typeof IntelligenceRoute
   '/mission-control': typeof MissionControlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
+  '/intelligence': typeof IntelligenceRoute
   '/mission-control': typeof MissionControlRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
+  '/intelligence': typeof IntelligenceRoute
   '/mission-control': typeof MissionControlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/foundation' | '/mission-control'
+  fullPaths: '/' | '/foundation' | '/intelligence' | '/mission-control'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/foundation' | '/mission-control'
-  id: '__root__' | '/' | '/foundation' | '/mission-control'
+  to: '/' | '/foundation' | '/intelligence' | '/mission-control'
+  id: '__root__' | '/' | '/foundation' | '/intelligence' | '/mission-control'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   FoundationRoute: typeof FoundationRoute
+  IntelligenceRoute: typeof IntelligenceRoute
   MissionControlRoute: typeof MissionControlRoute
 }
 
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/mission-control'
       fullPath: '/mission-control'
       preLoaderRoute: typeof MissionControlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/intelligence': {
+      id: '/intelligence'
+      path: '/intelligence'
+      fullPath: '/intelligence'
+      preLoaderRoute: typeof IntelligenceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/foundation': {
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FoundationRoute: FoundationRoute,
+  IntelligenceRoute: IntelligenceRoute,
   MissionControlRoute: MissionControlRoute,
 }
 export const routeTree = rootRouteImport

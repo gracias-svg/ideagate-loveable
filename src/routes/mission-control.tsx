@@ -142,12 +142,13 @@ function AmbientAtmosphere() {
 
 const SIDEBAR_SECTIONS: {
   label: string;
-  items: { id: string; label: string; kbd?: string; active?: boolean; badge?: string }[];
+  items: { id: string; label: string; kbd?: string; href?: string; active?: boolean; badge?: string }[];
 }[] = [
   {
     label: "Workspace",
     items: [
       { id: "control", label: "Mission Control", kbd: "M", active: true },
+      { id: "intelligence", label: "Intelligence & Quality", kbd: "I", href: "/intelligence", badge: "7" },
       { id: "journey", label: "Journeys", kbd: "J" },
       { id: "artifacts", label: "Artifacts", kbd: "A", badge: "12" },
       { id: "agents", label: "Agents", kbd: "G" },
@@ -202,18 +203,18 @@ function MissionSidebar() {
             <ul className="space-y-0.5">
               {s.items.map((it) => (
                 <li key={it.id}>
-                  <button
-                    className={`group relative flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left transition-colors duration-150 ${
+                  {(() => {
+                    const className = `group relative flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left transition-colors duration-150 ${
                       it.active
                         ? "text-foreground"
                         : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    style={{
+                    }`;
+                    const style = {
                       background: it.active
                         ? "color-mix(in oklab, var(--operational) 10%, transparent)"
                         : "transparent",
-                    }}
-                  >
+                    } as const;
+                    const inner = (<>
                     {it.active ? (
                       <span
                         aria-hidden
@@ -247,7 +248,13 @@ function MissionSidebar() {
                         </span>
                       ) : null}
                     </span>
-                  </button>
+                    </>);
+                    return it.href ? (
+                      <Link to={it.href} className={className} style={style}>{inner}</Link>
+                    ) : (
+                      <button className={className} style={style}>{inner}</button>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>
