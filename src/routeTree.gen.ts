@@ -10,32 +10,42 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as FoundationRouteImport } from './routes/foundation'
+import { Route as IndexRouteImport } from './routes/index'
 
 const FoundationRoute = FoundationRouteImport.update({
   id: '/foundation',
   path: '/foundation',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/foundation'
+  fullPaths: '/' | '/foundation'
   fileRoutesByTo: FileRoutesByTo
-  to: '/foundation'
-  id: '__root__' | '/foundation'
+  to: '/' | '/foundation'
+  id: '__root__' | '/' | '/foundation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   FoundationRoute: typeof FoundationRoute
 }
 
@@ -48,12 +58,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FoundationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   FoundationRoute: FoundationRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
