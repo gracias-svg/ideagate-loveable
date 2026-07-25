@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as MissionControlRouteImport } from './routes/mission-control'
 import { Route as IntelligenceRouteImport } from './routes/intelligence'
+import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as FoundationRouteImport } from './routes/foundation'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const MissionControlRoute = MissionControlRouteImport.update({
 const IntelligenceRoute = IntelligenceRouteImport.update({
   id: '/intelligence',
   path: '/intelligence',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsRoute = InsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FoundationRoute = FoundationRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
+  '/insights': typeof InsightsRoute
   '/intelligence': typeof IntelligenceRoute
   '/mission-control': typeof MissionControlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
+  '/insights': typeof InsightsRoute
   '/intelligence': typeof IntelligenceRoute
   '/mission-control': typeof MissionControlRoute
 }
@@ -51,20 +59,33 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
+  '/insights': typeof InsightsRoute
   '/intelligence': typeof IntelligenceRoute
   '/mission-control': typeof MissionControlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/foundation' | '/intelligence' | '/mission-control'
+  fullPaths:
+    | '/'
+    | '/foundation'
+    | '/insights'
+    | '/intelligence'
+    | '/mission-control'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/foundation' | '/intelligence' | '/mission-control'
-  id: '__root__' | '/' | '/foundation' | '/intelligence' | '/mission-control'
+  to: '/' | '/foundation' | '/insights' | '/intelligence' | '/mission-control'
+  id:
+    | '__root__'
+    | '/'
+    | '/foundation'
+    | '/insights'
+    | '/intelligence'
+    | '/mission-control'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   FoundationRoute: typeof FoundationRoute
+  InsightsRoute: typeof InsightsRoute
   IntelligenceRoute: typeof IntelligenceRoute
   MissionControlRoute: typeof MissionControlRoute
 }
@@ -83,6 +104,13 @@ declare module '@tanstack/react-router' {
       path: '/intelligence'
       fullPath: '/intelligence'
       preLoaderRoute: typeof IntelligenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insights': {
+      id: '/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof InsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/foundation': {
@@ -105,9 +133,20 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FoundationRoute: FoundationRoute,
+  InsightsRoute: InsightsRoute,
   IntelligenceRoute: IntelligenceRoute,
   MissionControlRoute: MissionControlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
