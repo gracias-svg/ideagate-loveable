@@ -299,7 +299,15 @@ const NAV_ITEMS = [
   { id: "philosophy", label: "Philosophy" },
 ];
 
-function TopNav({ theme, onToggleTheme }: { theme: "light" | "dark"; onToggleTheme: () => void }) {
+function TopNav({
+  theme,
+  onToggleTheme,
+  onOpenPalette,
+}: {
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
+  onOpenPalette?: () => void;
+}) {
   const containerRef = useRef<HTMLUListElement | null>(null);
   const [indicator, setIndicator] = useState<{ x: number; w: number; visible: boolean }>({
     x: 0,
@@ -372,6 +380,15 @@ function TopNav({ theme, onToggleTheme }: { theme: "light" | "dark"; onToggleThe
             className="text-code hidden rounded-md border border-border px-2.5 py-1.5 text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
           >
             {theme === "dark" ? "☾" : "☀"}
+          </button>
+          <button
+            onClick={onOpenPalette}
+            aria-label="Open command palette"
+            className="hidden items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
+          >
+            <span className="text-code">Search</span>
+            <span className="kbd-key">⌘</span>
+            <span className="kbd-key">K</span>
           </button>
           <Link
             to="/foundation"
