@@ -177,6 +177,7 @@ const SIDEBAR_SECTIONS: {
     items: [
       { id: "control", label: "Mission Control", kbd: "M", href: "/mission-control" },
       { id: "intelligence", label: "Intelligence & Quality", kbd: "I", href: "/intelligence", active: true, badge: "7" },
+      { id: "insights", label: "Insights & Performance", kbd: "P", href: "/insights" },
       { id: "journey", label: "Journeys", kbd: "J" },
       { id: "artifacts", label: "Artifacts", kbd: "A", badge: "12" },
       { id: "decisions", label: "Decisions", kbd: "D", badge: "3" },
