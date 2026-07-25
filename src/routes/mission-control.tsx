@@ -32,16 +32,6 @@ function MissionControl() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
-  // Force dark theme for the operational surface
-  useEffect(() => {
-    const html = document.documentElement;
-    const had = html.classList.contains("dark");
-    html.classList.add("dark");
-    return () => {
-      if (!had) html.classList.remove("dark");
-    };
-  }, []);
-
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
@@ -61,7 +51,7 @@ function MissionControl() {
   }, []);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden" style={{ background: "var(--surface-op-sunken)" }}>
+    <div className="dark relative min-h-screen overflow-x-hidden" style={{ background: "var(--surface-op-sunken)", color: "var(--foreground)" }}>
       <AmbientAtmosphere />
 
       <div className="relative z-10 flex min-h-screen">
