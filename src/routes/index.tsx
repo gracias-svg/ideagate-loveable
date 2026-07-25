@@ -582,10 +582,16 @@ function FoundationShowcase() {
         eyebrow="06 · Operational surface"
         title="Command-line DNA, reinterpreted as a calm graphical environment."
       >
+        <p className="mb-8 max-w-2xl text-caption">
+          Editorial surfaces sit on subtly warm neutrals. Operational surfaces —
+          mission control, timelines, logs, agents — shift to a slightly cooler
+          register. Same typography, spacing, motion, and elevation. One system,
+          two temperatures.
+        </p>
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           {/* Execution timeline */}
-          <div className="surface-card overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div className="overflow-hidden rounded-lg border border-border-op bg-surface-op-elevated shadow-[var(--shadow-xs)]">
+            <div className="flex items-center justify-between border-b border-border-op bg-surface-op px-5 py-3">
               <div className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-operational pulse-dot" />
                 <span className="text-ui text-foreground">gate.run · discovery/retention-q3</span>
@@ -595,7 +601,7 @@ function FoundationShowcase() {
                 running · 00:04:12
               </span>
             </div>
-            <ol className="divide-y divide-border">
+            <ol className="divide-y divide-[color:var(--border-op)]">
               {[
                 { t: "00:00", label: "Ingest brief", state: "done", agent: "coordinator" },
                 { t: "00:41", label: "Synthesize hypothesis tree", state: "done", agent: "researcher" },
@@ -619,7 +625,7 @@ function FoundationShowcase() {
                 );
               })}
             </ol>
-            <div className="border-t border-border p-4">
+            <div className="border-t border-border-op bg-surface-op-sunken p-4">
               <div className="mb-2 flex items-center justify-between text-caption">
                 <span>Stage 04 · Review</span>
                 <span className="text-code">running</span>
@@ -631,15 +637,15 @@ function FoundationShowcase() {
           </div>
 
           {/* Structured logs */}
-          <div className="surface-card overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div className="overflow-hidden rounded-lg border border-border-op bg-surface-op-elevated shadow-[var(--shadow-xs)]">
+            <div className="flex items-center justify-between border-b border-border-op bg-surface-op px-5 py-3">
               <span className="text-ui text-foreground">logs · stream</span>
               <div className="flex items-center gap-2">
                 <span className="status-rail">tail -f</span>
                 <span className="kbd-key">L</span>
               </div>
             </div>
-            <div className="max-h-[320px] overflow-hidden px-5 py-4">
+            <div className="max-h-[320px] overflow-hidden bg-surface-op-sunken px-5 py-4">
               {[
                 { lvl: "INFO", tone: "text-muted-foreground", msg: "coordinator resolved dependency graph (12 nodes)" },
                 { lvl: "INFO", tone: "text-muted-foreground", msg: "researcher opened source · segment_metrics.csv" },
@@ -663,7 +669,7 @@ function FoundationShowcase() {
           </div>
 
           {/* Agent grid */}
-          <div className="surface-card p-6 lg:col-span-2">
+          <div className="rounded-lg border border-border-op bg-surface-op-elevated p-6 shadow-[var(--shadow-xs)] lg:col-span-2">
             <div className="mb-5 flex items-center justify-between">
               <div className="text-heading-3">Agents</div>
               <span className="text-caption">4 online · 1 idle</span>
@@ -678,9 +684,9 @@ function FoundationShowcase() {
                 const tone =
                   a.state === "running"
                     ? "bg-operational-soft text-operational border-operational/30"
-                    : "bg-secondary text-muted-foreground border-border";
+                    : "bg-surface-op text-muted-foreground border-border-op";
                 return (
-                  <div key={a.name} className="rounded-lg border border-border bg-surface-elevated p-4">
+                  <div key={a.name} className="rounded-lg border border-border-op bg-surface-op p-4">
                     <div className="flex items-center justify-between">
                       <span className="text-ui text-foreground">{a.name}</span>
                       <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10.5px] font-medium ${tone}`}>
@@ -700,7 +706,7 @@ function FoundationShowcase() {
         </div>
 
         {/* System status rail */}
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface-sunken px-4 py-2 font-mono text-[11px] text-muted-foreground">
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border-op bg-surface-op-sunken px-4 py-2 font-mono text-[11px] text-muted-foreground">
           <div className="flex flex-wrap items-center gap-4">
             <span className="inline-flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-operational pulse-dot" />
