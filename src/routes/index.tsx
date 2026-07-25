@@ -397,7 +397,7 @@ function TopNav({
             Foundation
           </Link>
           <a
-            href="#cta"
+            href="/mission-control"
             className="text-ui inline-flex items-center gap-2 rounded-md bg-primary px-3.5 py-1.5 text-primary-foreground transition-transform duration-200 hover:-translate-y-px"
           >
             Enter console
@@ -547,7 +547,7 @@ function Hero() {
         {/* CTA row */}
         <Reveal delay={640}>
           <div className="mt-10 flex flex-wrap items-center gap-3">
-            <PremiumButton href="#cta" size="lg">
+            <PremiumButton href="/mission-control" size="lg">
               <span
                 aria-hidden
                 className="pulse-dot inline-block"
