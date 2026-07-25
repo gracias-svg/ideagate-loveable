@@ -887,12 +887,12 @@ function CapabilityCard({ c }: { c: Capability }) {
 
 function AgentMiniGrid() {
   const agents = [
-    { name: "coordinator", state: "orchestrating", color: "var(--operational)" },
-    { name: "researcher", state: "gathering", color: "var(--info)" },
-    { name: "architect", state: "mapping", color: "var(--info)" },
-    { name: "writer", state: "drafting", color: "var(--operational)" },
-    { name: "critic", state: "reviewing", color: "var(--warning)" },
-    { name: "prototyper", state: "idle", color: "var(--muted-foreground)" },
+    { name: "coordinator", state: "run", detail: "orchestrating", color: "var(--operational)", load: 0.92 },
+    { name: "researcher", state: "run", detail: "gathering", color: "var(--info)", load: 0.68 },
+    { name: "architect", state: "run", detail: "mapping", color: "var(--info)", load: 0.54 },
+    { name: "writer", state: "queue", detail: "drafting", color: "var(--operational)", load: 0.32 },
+    { name: "critic", state: "hold", detail: "reviewing", color: "var(--warning)", load: 0.18 },
+    { name: "prototyper", state: "idle", detail: "awaiting", color: "var(--muted-foreground)", load: 0 },
   ];
   return (
     <div
@@ -900,21 +900,91 @@ function AgentMiniGrid() {
       style={{ background: "var(--surface-op)", border: "1px solid var(--border-op)" }}
     >
       {agents.map((a) => (
-        <div
-          key={a.name}
-          className="flex items-center justify-between rounded-md px-3 py-2"
-          style={{ background: "var(--surface-op-elevated)", border: "1px solid var(--border-op)" }}
-        >
-          <div className="flex items-center gap-2">
-            <span
-              className="pulse-dot inline-block"
-              style={{ width: 6, height: 6, borderRadius: 999, background: a.color }}
-            />
-            <span className="text-code">{a.name}</span>
-          </div>
-          <span className="text-code text-muted-foreground">{a.state}</span>
-        </div>
+        <AgentChip key={a.name} {...a} />
       ))}
+    </div>
+  );
+}
+
+function AgentChip({
+  name,
+  state,
+  detail,
+  color,
+  load,
+}: {
+  name: string;
+  state: string;
+  detail: string;
+  color: string;
+  load: number;
+}) {
+  const active = state === "run";
+  return (
+    <div
+      className="group relative flex flex-col gap-1.5 overflow-hidden rounded-md px-3 py-2.5"
+      style={{
+        background: "var(--surface-op-elevated)",
+        border: "1px solid var(--border-op)",
+      }}
+    >
+      {active ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{
+            background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+            opacity: 0.7,
+          }}
+        />
+      ) : null}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span
+            className={active ? "pulse-dot inline-block" : "inline-block"}
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background: color,
+              boxShadow: active ? `0 0 8px ${color}` : "none",
+            }}
+          />
+          <span className="text-code text-foreground">{name}</span>
+        </div>
+        <span
+          className="text-code uppercase"
+          style={{
+            letterSpacing: "0.08em",
+            fontSize: "0.625rem",
+            color: active ? color : "var(--muted-foreground)",
+          }}
+        >
+          {state}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-end gap-[2px]" aria-hidden>
+          {Array.from({ length: 12 }).map((_, i) => {
+            const on = i / 12 < load;
+            return (
+              <span
+                key={i}
+                style={{
+                  width: 2,
+                  height: on ? 4 + ((i * 37) % 6) : 3,
+                  background: on ? color : "var(--border-op)",
+                  opacity: on ? 0.75 : 1,
+                  borderRadius: 1,
+                }}
+              />
+            );
+          })}
+        </div>
+        <span className="text-code text-muted-foreground" style={{ fontSize: "0.6875rem" }}>
+          {detail}
+        </span>
+      </div>
     </div>
   );
 }
