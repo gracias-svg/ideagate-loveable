@@ -1229,10 +1229,30 @@ function Footer() {
  * ============================================================ */
 function LandingPage() {
   const { theme, setTheme } = useTheme("dark");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      } else if (e.key === "Escape") {
+        setPaletteOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <TopNav theme={theme} onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} />
+      <TopNav
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+        onOpenPalette={() => setPaletteOpen(true)}
+      />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       <main>
         <Hero />
