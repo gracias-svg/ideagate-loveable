@@ -161,7 +161,7 @@ function FoundationShowcase() {
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-ui text-foreground">IdeaGate</span>
-              <span className="text-caption">Foundation · v1.0</span>
+              <span className="text-caption">Foundation · v2.0</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -198,7 +198,7 @@ function FoundationShowcase() {
           <div className="grid gap-16 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] md:items-end">
             <div className="animate-in-up">
               <Badge tone="accent" dot>
-                Phase 1 · Foundation
+                Phase 1 · Foundation · v2
               </Badge>
               <div className="mt-8 flex flex-col gap-1 text-subheading">
                 <span>The Product Operating System</span>
@@ -577,6 +577,148 @@ function FoundationShowcase() {
         </div>
       </Section>
 
+      {/* CLI / Mission control */}
+      <Section
+        eyebrow="06 · Operational surface"
+        title="Command-line DNA, reinterpreted as a calm graphical environment."
+      >
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          {/* Execution timeline */}
+          <div className="surface-card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-operational pulse-dot" />
+                <span className="text-ui text-foreground">gate.run · discovery/retention-q3</span>
+              </div>
+              <span className="status-rail">
+                <span className="h-1 w-1 rounded-full bg-operational" />
+                running · 00:04:12
+              </span>
+            </div>
+            <ol className="divide-y divide-border">
+              {[
+                { t: "00:00", label: "Ingest brief", state: "done", agent: "coordinator" },
+                { t: "00:41", label: "Synthesize hypothesis tree", state: "done", agent: "researcher" },
+                { t: "02:07", label: "Draft artifact · problem framing", state: "done", agent: "writer" },
+                { t: "03:55", label: "Review internal contradictions", state: "running", agent: "critic" },
+                { t: "—", label: "Compose stakeholder digest", state: "queued", agent: "editor" },
+              ].map((step) => {
+                const dot =
+                  step.state === "running"
+                    ? "bg-operational pulse-dot"
+                    : step.state === "done"
+                      ? "bg-success"
+                      : "bg-muted-foreground/40";
+                return (
+                  <li key={step.label} className="grid grid-cols-[64px_12px_1fr_auto] items-center gap-3 px-5 py-3">
+                    <span className="text-code text-muted-foreground">{step.t}</span>
+                    <span className={`h-2 w-2 rounded-full ${dot}`} />
+                    <span className="text-ui text-foreground">{step.label}</span>
+                    <span className="text-caption font-mono">{step.agent}</span>
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="border-t border-border p-4">
+              <div className="mb-2 flex items-center justify-between text-caption">
+                <span>Stage 04 · Review</span>
+                <span className="text-code">running</span>
+              </div>
+              <div className="execution-bar h-1 w-full rounded-full">
+                <div className="execution-bar-scan" />
+              </div>
+            </div>
+          </div>
+
+          {/* Structured logs */}
+          <div className="surface-card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <span className="text-ui text-foreground">logs · stream</span>
+              <div className="flex items-center gap-2">
+                <span className="status-rail">tail -f</span>
+                <span className="kbd-key">L</span>
+              </div>
+            </div>
+            <div className="max-h-[320px] overflow-hidden px-5 py-4">
+              {[
+                { lvl: "INFO", tone: "text-muted-foreground", msg: "coordinator resolved dependency graph (12 nodes)" },
+                { lvl: "INFO", tone: "text-muted-foreground", msg: "researcher opened source · segment_metrics.csv" },
+                { lvl: "OK  ", tone: "text-success", msg: "writer emitted artifact draft (v3)" },
+                { lvl: "WARN", tone: "text-warning", msg: "critic flagged 2 contradictions in section 03" },
+                { lvl: "INFO", tone: "text-muted-foreground", msg: "editor queued · compose stakeholder digest" },
+                { lvl: "RUN ", tone: "text-operational", msg: "critic reviewing artifact.retention-q3" },
+              ].map((l, i) => (
+                <div key={i} className="log-line grid grid-cols-[52px_44px_1fr] gap-3">
+                  <span className="text-muted-foreground">{String((i + 1) * 41).padStart(4, "0")}</span>
+                  <span className={l.tone}>{l.lvl}</span>
+                  <span className="text-foreground/80">{l.msg}</span>
+                </div>
+              ))}
+              <div className="log-line mt-1 flex items-center gap-2 text-operational">
+                <span>›</span>
+                <span>gate</span>
+                <span className="cli-caret" />
+              </div>
+            </div>
+          </div>
+
+          {/* Agent grid */}
+          <div className="surface-card p-6 lg:col-span-2">
+            <div className="mb-5 flex items-center justify-between">
+              <div className="text-heading-3">Agents</div>
+              <span className="text-caption">4 online · 1 idle</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { name: "coordinator", role: "Orchestration", state: "running" },
+                { name: "researcher", role: "Evidence", state: "running" },
+                { name: "writer", role: "Composition", state: "idle" },
+                { name: "critic", role: "Review", state: "running" },
+              ].map((a) => {
+                const tone =
+                  a.state === "running"
+                    ? "bg-operational-soft text-operational border-operational/30"
+                    : "bg-secondary text-muted-foreground border-border";
+                return (
+                  <div key={a.name} className="rounded-lg border border-border bg-surface-elevated p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-ui text-foreground">{a.name}</span>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10.5px] font-medium ${tone}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${a.state === "running" ? "bg-operational pulse-dot" : "bg-muted-foreground/60"}`} />
+                        {a.state}
+                      </span>
+                    </div>
+                    <div className="text-caption mt-1">{a.role}</div>
+                    <div className="mt-4 execution-bar h-0.5 w-full rounded-full">
+                      {a.state === "running" && <div className="execution-bar-scan" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* System status rail */}
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface-sunken px-4 py-2 font-mono text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-operational pulse-dot" />
+              system · nominal
+            </span>
+            <span>lifecycle · 04 / 07</span>
+            <span>queue · 2</span>
+            <span>latency · 84ms</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span>press</span>
+            <span className="kbd-key">⌘</span>
+            <span className="kbd-key">K</span>
+            <span>for commands</span>
+          </div>
+        </div>
+      </Section>
+
       {/* Footer */}
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-[var(--container-page)] flex-col gap-4 px-6 py-10 md:flex-row md:items-center md:justify-between md:px-10">
@@ -585,7 +727,7 @@ function FoundationShowcase() {
               <span className="font-serif text-[17px] leading-none">I</span>
             </div>
             <span className="text-caption">
-              IdeaGate · Foundation v1.0 · Phase 01
+              IdeaGate · Foundation v2.0 · Phase 01
             </span>
           </div>
           <span className="text-caption">
