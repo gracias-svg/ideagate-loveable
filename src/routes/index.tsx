@@ -324,7 +324,6 @@ function TopNav({ theme, onToggleTheme }: { theme: "light" | "dark"; onToggleThe
         style={{
           backgroundColor: "color-mix(in oklab, var(--background) 72%, transparent)",
           backdropFilter: "saturate(140%) blur(12px)",
-          WebkitBackdropFilter: "saturate(140%) blur(12px)",
           borderBottom: "1px solid color-mix(in oklab, var(--border) 60%, transparent)",
         }}
       >
