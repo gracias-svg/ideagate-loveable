@@ -1532,3 +1532,374 @@ function AgentTheatre() {
     </div>
   );
 }
+
+/* ============================================================
+ * Hero atmosphere — aurora + grid + stars + noise
+ * ============================================================ */
+function HeroAtmosphere() {
+  return (
+    <div className="absolute inset-0 overflow-hidden" aria-hidden>
+      {/* aurora blobs — extremely slow drift */}
+      <div
+        className="absolute -left-[20%] -top-[10%] h-[70vh] w-[70vh] rounded-full"
+        style={{
+          background:
+            "radial-gradient(closest-side, color-mix(in oklab, var(--operational) 22%, transparent), transparent 70%)",
+          filter: "blur(60px)",
+          animation: "ig-aurora-a 32s ease-in-out infinite alternate",
+          willChange: "transform",
+        }}
+      />
+      <div
+        className="absolute -right-[15%] top-[10%] h-[60vh] w-[60vh] rounded-full"
+        style={{
+          background:
+            "radial-gradient(closest-side, color-mix(in oklab, var(--info) 18%, transparent), transparent 70%)",
+          filter: "blur(70px)",
+          animation: "ig-aurora-b 40s ease-in-out infinite alternate",
+          willChange: "transform",
+        }}
+      />
+      <div
+        className="absolute left-[30%] top-[55%] h-[50vh] w-[50vh] rounded-full"
+        style={{
+          background:
+            "radial-gradient(closest-side, color-mix(in oklab, var(--operational) 14%, transparent), transparent 70%)",
+          filter: "blur(80px)",
+          animation: "ig-aurora-c 48s ease-in-out infinite alternate",
+          willChange: "transform",
+        }}
+      />
+      {/* grid — faint precision */}
+      <div
+        className="absolute inset-0 opacity-[0.18]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, color-mix(in oklab, var(--foreground) 8%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 8%, transparent) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
+          maskImage:
+            "radial-gradient(ellipse at 50% 40%, black 30%, transparent 75%)",
+        }}
+      />
+      {/* stars */}
+      <StarField />
+      {/* noise */}
+      <div
+        className="absolute inset-0 opacity-[0.035] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.8 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+        }}
+      />
+      <style>{`
+        @keyframes ig-aurora-a { 0% { transform: translate3d(0,0,0) scale(1); } 100% { transform: translate3d(6vw, 4vh, 0) scale(1.08); } }
+        @keyframes ig-aurora-b { 0% { transform: translate3d(0,0,0) scale(1); } 100% { transform: translate3d(-5vw, 6vh, 0) scale(1.12); } }
+        @keyframes ig-aurora-c { 0% { transform: translate3d(0,0,0) scale(1); } 100% { transform: translate3d(4vw, -5vh, 0) scale(1.06); } }
+        @keyframes ig-star-tw { 0%, 100% { opacity: .35; } 50% { opacity: .9; } }
+      `}</style>
+    </div>
+  );
+}
+
+function StarField() {
+  const stars = useMemo(() => {
+    const arr: Array<{ x: number; y: number; s: number; d: number; delay: number }> = [];
+    for (let i = 0; i < 60; i++) {
+      arr.push({
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        s: Math.random() * 1.4 + 0.4,
+        d: 3 + Math.random() * 6,
+        delay: Math.random() * 6,
+      });
+    }
+    return arr;
+  }, []);
+  return (
+    <div className="absolute inset-0">
+      {stars.map((st, i) => (
+        <span
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            left: `${st.x}%`,
+            top: `${st.y}%`,
+            width: st.s,
+            height: st.s,
+            background: "color-mix(in oklab, var(--foreground) 70%, transparent)",
+            animation: `ig-star-tw ${st.d}s ease-in-out ${st.delay}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+ * Premium button — depth, edge highlight, shine sweep, glow
+ * ============================================================ */
+function PremiumButton({
+  href,
+  onClick,
+  children,
+  size = "md",
+  block = false,
+}: {
+  href?: string;
+  onClick?: () => void;
+  children: ReactNode;
+  size?: "md" | "lg";
+  block?: boolean;
+}) {
+  const pad = size === "lg" ? "px-5 py-2.5" : "px-4 py-2";
+  const cls =
+    "text-ui group relative isolate inline-flex items-center gap-3 overflow-hidden rounded-md text-primary-foreground transition-all duration-200 hover:-translate-y-px active:translate-y-0 " +
+    pad +
+    (block ? " w-full justify-between" : "");
+  const style: React.CSSProperties = {
+    background:
+      "linear-gradient(180deg, color-mix(in oklab, var(--primary) 92%, white 8%), var(--primary))",
+    boxShadow:
+      "0 1px 0 0 color-mix(in oklab, white 18%, transparent) inset, 0 -1px 0 0 color-mix(in oklab, black 30%, transparent) inset, 0 8px 20px -8px color-mix(in oklab, var(--operational) 40%, transparent), var(--shadow-md)",
+  };
+  const inner = (
+    <>
+      {/* top edge highlight */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-2 top-0 h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, color-mix(in oklab, white 45%, transparent), transparent)",
+        }}
+      />
+      {/* focus/hover ring — emerald */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -inset-px rounded-md opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        style={{
+          boxShadow:
+            "0 0 0 1px color-mix(in oklab, var(--operational) 55%, transparent), 0 12px 30px -10px color-mix(in oklab, var(--operational) 55%, transparent)",
+        }}
+      />
+      {/* shine sweep */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-full"
+        style={{
+          background:
+            "linear-gradient(100deg, transparent 35%, color-mix(in oklab, white 22%, transparent) 50%, transparent 65%)",
+        }}
+      />
+      <span className="relative inline-flex items-center gap-2">{children}</span>
+    </>
+  );
+  if (href) {
+    return (
+      <a href={href} className={cls} style={style}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <button onClick={onClick} className={cls} style={style}>
+      {inner}
+    </button>
+  );
+}
+
+/* ============================================================
+ * Command palette — ⌘K overlay
+ * ============================================================ */
+function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [q, setQ] = useState("");
+  const [idx, setIdx] = useState(0);
+
+  const items = useMemo(
+    () => [
+      { group: "Navigate", label: "Go to Capabilities", hint: "#capabilities", icon: "→" },
+      { group: "Navigate", label: "Go to Lifecycle", hint: "#lifecycle", icon: "→" },
+      { group: "Navigate", label: "Go to Agents", hint: "#agents", icon: "→" },
+      { group: "Navigate", label: "Go to Philosophy", hint: "#philosophy", icon: "→" },
+      { group: "Actions", label: "Enter console", hint: "run", icon: "▸" },
+      { group: "Actions", label: "Open Foundation showcase", hint: "/foundation", icon: "↗" },
+      { group: "Agents", label: "Dispatch: researcher", hint: "run", icon: "◉" },
+      { group: "Agents", label: "Dispatch: architect", hint: "run", icon: "◉" },
+      { group: "Agents", label: "Dispatch: critic", hint: "review", icon: "◉" },
+      { group: "System", label: "Toggle theme", hint: "⌘⇧L", icon: "☾" },
+    ],
+    []
+  );
+
+  const filtered = useMemo(() => {
+    if (!q.trim()) return items;
+    const s = q.toLowerCase();
+    return items.filter((i) => i.label.toLowerCase().includes(s) || i.group.toLowerCase().includes(s));
+  }, [q, items]);
+
+  useEffect(() => {
+    if (open) {
+      setQ("");
+      setIdx(0);
+      setTimeout(() => inputRef.current?.focus(), 40);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setIdx((i) => Math.min(filtered.length - 1, i + 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setIdx((i) => Math.max(0, i - 1));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const it = filtered[idx];
+        if (it && it.hint.startsWith("#")) {
+          const el = document.querySelector(it.hint);
+          el?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, filtered, idx, onClose]);
+
+  return (
+    <div
+      aria-hidden={!open}
+      className="pointer-events-none fixed inset-0 z-[80] flex items-start justify-center px-4 pt-[14vh]"
+      style={{
+        opacity: open ? 1 : 0,
+        transition: "opacity 200ms var(--ease-standard)",
+      }}
+    >
+      {/* backdrop */}
+      <button
+        aria-label="Close palette"
+        onClick={onClose}
+        className="absolute inset-0"
+        tabIndex={open ? 0 : -1}
+        style={{
+          background: "color-mix(in oklab, var(--background) 40%, transparent)",
+          backdropFilter: "blur(10px) saturate(140%)",
+          pointerEvents: open ? "auto" : "none",
+        }}
+      />
+      {/* panel */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative w-full max-w-[620px] overflow-hidden rounded-xl"
+        style={{
+          pointerEvents: open ? "auto" : "none",
+          background: "color-mix(in oklab, var(--surface-elevated) 92%, transparent)",
+          border: "1px solid var(--border-strong)",
+          boxShadow:
+            "var(--shadow-xl), 0 0 0 1px color-mix(in oklab, var(--operational) 22%, transparent), 0 0 40px -10px color-mix(in oklab, var(--operational) 30%, transparent)",
+          transform: open ? "translateY(0) scale(1)" : "translateY(-8px) scale(0.98)",
+          transition:
+            "transform 220ms var(--ease-out), opacity 220ms var(--ease-standard)",
+        }}
+      >
+        {/* input */}
+        <div className="flex items-center gap-3 border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
+          <span className="text-code" style={{ color: "var(--operational)" }}>›</span>
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setIdx(0);
+            }}
+            placeholder="Search modules, agents, actions…"
+            className="text-ui flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+          />
+          <span className="kbd-key">esc</span>
+        </div>
+        {/* list */}
+        <div className="max-h-[52vh] overflow-y-auto p-2">
+          {filtered.length === 0 ? (
+            <div className="text-caption px-4 py-8 text-center">No matches for "{q}"</div>
+          ) : (
+            groupBy(filtered, "group").map(([group, rows]) => (
+              <div key={group} className="mb-2">
+                <div className="text-code px-3 pt-2 pb-1 uppercase tracking-wider text-muted-foreground" style={{ fontSize: "0.625rem" }}>
+                  {group}
+                </div>
+                {rows.map((it) => {
+                  const active = filtered.indexOf(it) === idx;
+                  return (
+                    <button
+                      key={it.label}
+                      onMouseEnter={() => setIdx(filtered.indexOf(it))}
+                      onClick={() => {
+                        if (it.hint.startsWith("#")) {
+                          document.querySelector(it.hint)?.scrollIntoView({ behavior: "smooth" });
+                        }
+                        onClose();
+                      }}
+                      className="text-ui flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-colors"
+                      style={{
+                        background: active ? "color-mix(in oklab, var(--operational) 12%, transparent)" : "transparent",
+                        color: active ? "var(--foreground)" : "var(--foreground)",
+                        boxShadow: active
+                          ? "inset 0 0 0 1px color-mix(in oklab, var(--operational) 32%, transparent)"
+                          : "none",
+                      }}
+                    >
+                      <span
+                        className="grid h-6 w-6 place-items-center rounded"
+                        style={{
+                          background: "var(--surface-op-sunken)",
+                          border: "1px solid var(--border-op)",
+                          color: active ? "var(--operational)" : "var(--muted-foreground)",
+                        }}
+                      >
+                        <span className="text-code" style={{ fontSize: "0.75rem" }}>{it.icon}</span>
+                      </span>
+                      <span className="flex-1">{it.label}</span>
+                      <span className="text-code text-muted-foreground">{it.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </div>
+        {/* footer */}
+        <div
+          className="flex items-center justify-between border-t px-4 py-2.5"
+          style={{ borderColor: "var(--border)", background: "var(--surface-op-sunken)" }}
+        >
+          <div className="text-code flex items-center gap-3 text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="kbd-key">↑</span><span className="kbd-key">↓</span> navigate</span>
+            <span className="flex items-center gap-1"><span className="kbd-key">↵</span> select</span>
+            <span className="flex items-center gap-1"><span className="kbd-key">esc</span> close</span>
+          </div>
+          <div className="text-code flex items-center gap-2 text-muted-foreground">
+            <span
+              className="pulse-dot inline-block"
+              style={{ width: 5, height: 5, borderRadius: 999, background: "var(--operational)" }}
+            />
+            palette · online
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function groupBy<T extends Record<string, any>>(arr: T[], key: keyof T): Array<[string, T[]]> {
+  const map = new Map<string, T[]>();
+  for (const it of arr) {
+    const k = String(it[key]);
+    if (!map.has(k)) map.set(k, []);
+    map.get(k)!.push(it);
+  }
+  return Array.from(map.entries());
+}
