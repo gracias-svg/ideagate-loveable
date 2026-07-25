@@ -827,13 +827,44 @@ function CapabilityCard({ c }: { c: Capability }) {
         minHeight: c.span === "wide" ? 340 : 220,
       }}
     >
+      {/* faint inner grid */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.05]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, var(--foreground) 1px, transparent 1px), linear-gradient(to bottom, var(--foreground) 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+          maskImage: "radial-gradient(ellipse at 100% 0%, black, transparent 60%)",
+        }}
+      />
+      {/* cursor-follow soft light */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 transition-opacity duration-300"
+        style={{
+          opacity: hover ? 1 : 0,
+          background: `radial-gradient(360px circle at ${glow.x}% ${glow.y}%, color-mix(in oklab, var(--operational) 8%, transparent), transparent 60%)`,
+        }}
+      />
+      {/* top edge highlight */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-4 top-0 h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, color-mix(in oklab, var(--foreground) 20%, transparent), transparent)",
+          opacity: hover ? 1 : 0.5,
+          transition: "opacity 260ms var(--ease-standard)",
+        }}
+      />
       {/* animated inner border */}
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0 rounded-xl"
         style={{
           padding: 1,
-          background: `radial-gradient(240px circle at ${glow.x}% ${glow.y}%, color-mix(in oklab, var(--operational) 40%, transparent), transparent 60%)`,
+          background: `radial-gradient(260px circle at ${glow.x}% ${glow.y}%, color-mix(in oklab, var(--operational) 55%, transparent), transparent 60%)`,
           WebkitMask:
             "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
           WebkitMaskComposite: "xor",
@@ -843,12 +874,12 @@ function CapabilityCard({ c }: { c: Capability }) {
         }}
       />
 
-      <div className="flex items-start justify-between p-5">
+      <div className="relative flex items-start justify-between p-5">
         <div className="text-code text-muted-foreground">{c.code}</div>
         <div className="text-code text-muted-foreground">{c.role}</div>
       </div>
 
-      <div className="px-5">
+      <div className="relative px-5">
         <div
           className="text-heading-3"
           style={{ fontFamily: "var(--font-serif)", fontWeight: 400, fontSize: "1.5rem", lineHeight: 1.15 }}
@@ -857,13 +888,13 @@ function CapabilityCard({ c }: { c: Capability }) {
         </div>
       </div>
 
-      <div className="flex-1 px-5 pt-3">
+      <div className="relative flex-1 px-5 pt-3">
         <p className="text-caption max-w-[46ch]">{c.detail}</p>
       </div>
 
-      {c.render ? <div className="px-5 pb-5 pt-6">{c.render()}</div> : null}
+      {c.render ? <div className="relative px-5 pb-5 pt-6">{c.render()}</div> : null}
 
-      <div className="mt-auto flex items-center justify-between px-5 py-4">
+      <div className="relative mt-auto flex items-center justify-between px-5 py-4">
         <div
           className="text-ui inline-flex items-center gap-2 text-muted-foreground transition-colors group-hover:text-foreground"
         >
@@ -878,6 +909,7 @@ function CapabilityCard({ c }: { c: Capability }) {
           style={{
             background: hover ? "var(--operational)" : "var(--border-strong)",
             transition: "background 200ms var(--ease-standard)",
+            boxShadow: hover ? "0 0 10px var(--operational)" : "none",
           }}
         />
       </div>
