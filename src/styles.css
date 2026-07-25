@@ -40,6 +40,10 @@
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
   --color-surface-sunken: var(--surface-sunken);
+  --color-surface-op: var(--surface-op);
+  --color-surface-op-elevated: var(--surface-op-elevated);
+  --color-surface-op-sunken: var(--surface-op-sunken);
+  --color-border-op: var(--border-op);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -109,6 +113,12 @@
   --surface: oklch(1 0 0);
   --surface-elevated: oklch(1 0 0);
   --surface-sunken: var(--ink-50);
+
+  /* Operational surfaces — subtly cooler, precise. Same language, different register. */
+  --surface-op: oklch(0.985 0.004 240);
+  --surface-op-elevated: oklch(0.995 0.003 240);
+  --surface-op-sunken: oklch(0.965 0.005 240);
+  --border-op: oklch(0.9 0.008 240);
 
   --card: oklch(1 0 0);
   --card-foreground: var(--ink-900);
@@ -203,6 +213,12 @@
   --surface: oklch(0.14 0.009 250);
   --surface-elevated: oklch(0.17 0.01 250);
   --surface-sunken: oklch(0.09 0.007 250);
+
+  /* Operational surfaces — slightly cooler charcoal, precise, technical. */
+  --surface-op: oklch(0.135 0.012 245);
+  --surface-op-elevated: oklch(0.165 0.014 245);
+  --surface-op-sunken: oklch(0.095 0.01 245);
+  --border-op: oklch(1 0 0 / 10%);
 
   --card: oklch(0.14 0.009 250);
   --card-foreground: oklch(0.96 0.004 95);
