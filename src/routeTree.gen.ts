@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as MissionControlRouteImport } from './routes/mission-control'
 import { Route as FoundationRouteImport } from './routes/foundation'
 import { Route as IndexRouteImport } from './routes/index'
 
+const MissionControlRoute = MissionControlRouteImport.update({
+  id: '/mission-control',
+  path: '/mission-control',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FoundationRoute = FoundationRouteImport.update({
   id: '/foundation',
   path: '/foundation',
@@ -26,31 +32,42 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
+  '/mission-control': typeof MissionControlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
+  '/mission-control': typeof MissionControlRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/foundation': typeof FoundationRoute
+  '/mission-control': typeof MissionControlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/foundation'
+  fullPaths: '/' | '/foundation' | '/mission-control'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/foundation'
-  id: '__root__' | '/' | '/foundation'
+  to: '/' | '/foundation' | '/mission-control'
+  id: '__root__' | '/' | '/foundation' | '/mission-control'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   FoundationRoute: typeof FoundationRoute
+  MissionControlRoute: typeof MissionControlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/mission-control': {
+      id: '/mission-control'
+      path: '/mission-control'
+      fullPath: '/mission-control'
+      preLoaderRoute: typeof MissionControlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/foundation': {
       id: '/foundation'
       path: '/foundation'
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FoundationRoute: FoundationRoute,
+  MissionControlRoute: MissionControlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
