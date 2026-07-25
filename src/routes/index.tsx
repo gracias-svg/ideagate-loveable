@@ -460,6 +460,7 @@ function Hero() {
     >
       {/* ambient background */}
       <div className="absolute inset-0" aria-hidden>
+        <HeroAtmosphere />
         <ConstellationCanvas />
         {/* soft vignette top & bottom to blend into page */}
         <div
@@ -546,26 +547,21 @@ function Hero() {
         {/* CTA row */}
         <Reveal delay={640}>
           <div className="mt-10 flex flex-wrap items-center gap-3">
-            <a
-              href="#cta"
-              className="text-ui group relative inline-flex items-center gap-3 rounded-md bg-primary px-5 py-2.5 text-primary-foreground transition-transform duration-200 hover:-translate-y-px"
-              style={{ boxShadow: "var(--shadow-md)" }}
-            >
+            <PremiumButton href="#cta" size="lg">
               <span
                 aria-hidden
                 className="pulse-dot inline-block"
                 style={{ width: 6, height: 6, borderRadius: 999, background: "var(--operational)" }}
               />
               Enter console
-              <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">
-                →
-              </span>
-            </a>
+              <span aria-hidden className="translate-x-0 transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+            </PremiumButton>
             <a
               href="#capabilities"
-              className="text-ui inline-flex items-center gap-2 rounded-md border border-border px-5 py-2.5 text-foreground transition-colors hover:bg-muted"
+              className="text-ui group inline-flex items-center gap-2 rounded-md border border-border bg-surface/40 px-5 py-2.5 text-foreground backdrop-blur-sm transition-all duration-200 hover:-translate-y-px hover:bg-muted hover:border-border-strong"
             >
               Read the system tour
+              <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
             </a>
             <div className="text-code ml-auto hidden items-center gap-2 text-muted-foreground md:flex">
               <span className="kbd-key">⌘</span>
@@ -1146,10 +1142,7 @@ function CTA() {
               style={{ background: "var(--surface-elevated)", borderColor: "var(--border)" }}
             >
               <div className="text-code text-muted-foreground mb-4">console.new</div>
-              <a
-                href="#"
-                className="text-ui group inline-flex w-full items-center justify-between gap-3 rounded-md bg-primary px-4 py-3 text-primary-foreground transition-transform duration-200 hover:-translate-y-px"
-              >
+              <PremiumButton href="#" size="lg" block>
                 <span className="inline-flex items-center gap-2">
                   <span
                     aria-hidden
@@ -1158,8 +1151,8 @@ function CTA() {
                   />
                   Enter console
                 </span>
-                <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
-              </a>
+                <span aria-hidden className="ml-auto transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+              </PremiumButton>
               <Link
                 to="/foundation"
                 className="text-ui mt-2 inline-flex w-full items-center justify-between gap-3 rounded-md border border-border px-4 py-3 text-foreground transition-colors hover:bg-muted"
