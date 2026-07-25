@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/foundation")({
   head: () => ({
     meta: [
       { title: "IdeaGate — Foundation" },
