@@ -628,6 +628,30 @@ function AgentCard({ agent: a }: { agent: Agent }) {
     blocked: "var(--destructive)",
   };
   const isLive = a.state === "running";
+  const isReviewing = a.state === "reviewing";
+  const streaming = isLive || isReviewing;
+
+  // Live token counter — increments while the agent is actively working.
+  const [tokens, setTokens] = useState(a.tokens);
+  useEffect(() => {
+    if (!streaming) return;
+    const rate = Math.round(30 + a.load * 220); // tokens per tick
+    const t = setInterval(() => setTokens((v) => v + Math.round(rate * (0.6 + Math.random() * 0.8))), 1200);
+    return () => clearInterval(t);
+  }, [streaming, a.load]);
+
+  // Micro confidence delta — occasional small drift while running.
+  const [delta, setDelta] = useState<{ v: number; k: number } | null>(null);
+  useEffect(() => {
+    if (!isLive) return;
+    let k = 0;
+    const t = setInterval(() => {
+      k += 1;
+      const sign = Math.random() > 0.35 ? 1 : -1;
+      setDelta({ v: sign * (Math.random() < 0.5 ? 1 : 2), k });
+    }, 4200);
+    return () => clearInterval(t);
+  }, [isLive]);
 
   return (
     <div
@@ -652,7 +676,7 @@ function AgentCard({ agent: a }: { agent: Agent }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
-            className="grid h-8 w-8 place-items-center rounded-md"
+            className={`grid h-8 w-8 place-items-center rounded-md ${isLive ? "heartbeat" : ""}`}
             style={{
               background: `color-mix(in oklab, ${stateColor[a.state]} 14%, transparent)`,
               border: `1px solid color-mix(in oklab, ${stateColor[a.state]} 32%, transparent)`,
@@ -677,7 +701,7 @@ function AgentCard({ agent: a }: { agent: Agent }) {
       <div className="mt-4 min-h-[2.5em]">
         <div className="text-caption text-foreground/85">
           {a.task}
-          {isLive ? <span className="cli-caret ml-0.5 align-baseline" /> : null}
+          {streaming ? <span className="cli-caret ml-0.5 align-baseline" /> : null}
         </div>
       </div>
 
@@ -689,12 +713,13 @@ function AgentCard({ agent: a }: { agent: Agent }) {
             return (
               <span
                 key={i}
-                className="w-1 rounded-sm"
+                className={`w-1 rounded-sm ${isLive && active ? "breathe" : ""}`}
                 style={{
                   height: h,
                   background: active ? stateColor[a.state] : "color-mix(in oklab, var(--foreground) 8%, transparent)",
                   opacity: active ? 0.9 : 0.6,
                   transition: "background 220ms var(--ease-standard)",
+                  animationDelay: `${(i % 6) * 120}ms`,
                 }}
               />
             );
@@ -703,11 +728,30 @@ function AgentCard({ agent: a }: { agent: Agent }) {
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t pt-3" style={{ borderColor: "var(--border-op)" }}>
-        <div className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
-          {a.tokens.toLocaleString()} tokens
+        <div className="text-code flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: 10 }}>
+          <span className="tabular-nums text-foreground/80">{tokens.toLocaleString()}</span>
+          <span>tok</span>
+          {streaming ? (
+            <span
+              className="tabular-nums"
+              style={{ color: "var(--operational)" }}
+            >
+              ▲
+            </span>
+          ) : null}
         </div>
-        <div className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
-          {a.since}
+        <div className="text-code flex items-center gap-2 text-muted-foreground" style={{ fontSize: 10 }}>
+          {delta ? (
+            <span
+              key={delta.k}
+              className="animate-in-fade tabular-nums"
+              style={{ color: delta.v >= 0 ? "var(--operational)" : "var(--warning)" }}
+            >
+              {delta.v >= 0 ? "+" : ""}
+              {delta.v}Δconf
+            </span>
+          ) : null}
+          <span>{a.since}</span>
         </div>
       </div>
     </div>
