@@ -63,6 +63,10 @@ function MissionControl() {
           <main className="mx-auto w-full max-w-[1400px] px-8 pb-24 pt-8">
             <HeroJourney />
 
+            <div className="mt-10">
+              <OrchestrationLayer />
+            </div>
+
             <div className="mt-10 grid grid-cols-12 gap-6">
               <section className="col-span-12 xl:col-span-8">
                 <ActiveAgents />
