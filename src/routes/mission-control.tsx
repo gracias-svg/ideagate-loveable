@@ -63,6 +63,10 @@ function MissionControl() {
           <main className="mx-auto w-full max-w-[1400px] px-8 pb-24 pt-8">
             <HeroJourney />
 
+            <div className="mt-10">
+              <OrchestrationLayer />
+            </div>
+
             <div className="mt-10 grid grid-cols-12 gap-6">
               <section className="col-span-12 xl:col-span-8">
                 <ActiveAgents />
@@ -624,6 +628,30 @@ function AgentCard({ agent: a }: { agent: Agent }) {
     blocked: "var(--destructive)",
   };
   const isLive = a.state === "running";
+  const isReviewing = a.state === "reviewing";
+  const streaming = isLive || isReviewing;
+
+  // Live token counter — increments while the agent is actively working.
+  const [tokens, setTokens] = useState(a.tokens);
+  useEffect(() => {
+    if (!streaming) return;
+    const rate = Math.round(30 + a.load * 220); // tokens per tick
+    const t = setInterval(() => setTokens((v) => v + Math.round(rate * (0.6 + Math.random() * 0.8))), 1200);
+    return () => clearInterval(t);
+  }, [streaming, a.load]);
+
+  // Micro confidence delta — occasional small drift while running.
+  const [delta, setDelta] = useState<{ v: number; k: number } | null>(null);
+  useEffect(() => {
+    if (!isLive) return;
+    let k = 0;
+    const t = setInterval(() => {
+      k += 1;
+      const sign = Math.random() > 0.35 ? 1 : -1;
+      setDelta({ v: sign * (Math.random() < 0.5 ? 1 : 2), k });
+    }, 4200);
+    return () => clearInterval(t);
+  }, [isLive]);
 
   return (
     <div
@@ -648,7 +676,7 @@ function AgentCard({ agent: a }: { agent: Agent }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div
-            className="grid h-8 w-8 place-items-center rounded-md"
+            className={`grid h-8 w-8 place-items-center rounded-md ${isLive ? "heartbeat" : ""}`}
             style={{
               background: `color-mix(in oklab, ${stateColor[a.state]} 14%, transparent)`,
               border: `1px solid color-mix(in oklab, ${stateColor[a.state]} 32%, transparent)`,
@@ -673,7 +701,7 @@ function AgentCard({ agent: a }: { agent: Agent }) {
       <div className="mt-4 min-h-[2.5em]">
         <div className="text-caption text-foreground/85">
           {a.task}
-          {isLive ? <span className="cli-caret ml-0.5 align-baseline" /> : null}
+          {streaming ? <span className="cli-caret ml-0.5 align-baseline" /> : null}
         </div>
       </div>
 
@@ -685,12 +713,13 @@ function AgentCard({ agent: a }: { agent: Agent }) {
             return (
               <span
                 key={i}
-                className="w-1 rounded-sm"
+                className={`w-1 rounded-sm ${isLive && active ? "breathe" : ""}`}
                 style={{
                   height: h,
                   background: active ? stateColor[a.state] : "color-mix(in oklab, var(--foreground) 8%, transparent)",
                   opacity: active ? 0.9 : 0.6,
                   transition: "background 220ms var(--ease-standard)",
+                  animationDelay: `${(i % 6) * 120}ms`,
                 }}
               />
             );
@@ -699,11 +728,30 @@ function AgentCard({ agent: a }: { agent: Agent }) {
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t pt-3" style={{ borderColor: "var(--border-op)" }}>
-        <div className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
-          {a.tokens.toLocaleString()} tokens
+        <div className="text-code flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: 10 }}>
+          <span className="tabular-nums text-foreground/80">{tokens.toLocaleString()}</span>
+          <span>tok</span>
+          {streaming ? (
+            <span
+              className="tabular-nums"
+              style={{ color: "var(--operational)" }}
+            >
+              ▲
+            </span>
+          ) : null}
         </div>
-        <div className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
-          {a.since}
+        <div className="text-code flex items-center gap-2 text-muted-foreground" style={{ fontSize: 10 }}>
+          {delta ? (
+            <span
+              key={delta.k}
+              className="animate-in-fade tabular-nums"
+              style={{ color: delta.v >= 0 ? "var(--operational)" : "var(--warning)" }}
+            >
+              {delta.v >= 0 ? "+" : ""}
+              {delta.v}Δconf
+            </span>
+          ) : null}
+          <span>{a.since}</span>
         </div>
       </div>
     </div>
@@ -1193,6 +1241,311 @@ function MissionLog() {
 }
 
 /* ─────────────────────────── Bottom system rail ─────────────────────────── */
+
+/* ─────────────────────────── Orchestration Layer ─────────────────────────── */
+
+type OrchNode = {
+  id: string;
+  label: string;
+  sub: string;
+  x: number; // percent
+  y: number; // percent
+  state: "running" | "idle" | "queued" | "review" | "blocked";
+  count?: string;
+};
+
+const ORCH_NODES: OrchNode[] = [
+  { id: "coord", label: "Coordinator", sub: "C-01 · dispatch", x: 8, y: 50, state: "running", count: "12/s" },
+  { id: "r", label: "Researcher", sub: "R-01 · signal", x: 32, y: 18, state: "running", count: "14.3k" },
+  { id: "s", label: "Strategist", sub: "S-01 · shape", x: 32, y: 50, state: "review", count: "9.8k" },
+  { id: "u", label: "UX", sub: "U-01 · design", x: 32, y: 82, state: "running", count: "6.4k" },
+  { id: "a", label: "Architect", sub: "A-01 · build", x: 32, y: 115, state: "queued" }, // rendered below viewbox unless we extend — cap layout
+];
+
+// A simplified, editorial 4-column pipeline (dispatch → agents → artifacts → validation → review → stage advance)
+function OrchestrationLayer() {
+  return (
+    <SectionShell
+      eyebrow="orchestration"
+      title="How the coordinator moves work through the system"
+      meta="live · 4 agents dispatched"
+    >
+      <div
+        className="relative overflow-hidden rounded-2xl border p-6"
+        style={{
+          borderColor: "var(--border-op)",
+          background:
+            "linear-gradient(180deg, color-mix(in oklab, var(--surface-op-elevated) 92%, transparent), color-mix(in oklab, var(--surface-op) 92%, transparent))",
+        }}
+      >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-6 top-0 h-px"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, color-mix(in oklab, var(--operational) 55%, transparent), transparent)",
+          }}
+        />
+        <OrchestrationDiagram />
+      </div>
+    </SectionShell>
+  );
+}
+
+function OrchestrationDiagram() {
+  // 6 columns: Coordinator · Agents · Artifacts · Validation · Review · Stage
+  // Editorial SVG at fixed viewBox — scales responsively.
+  const W = 1200;
+  const H = 340;
+
+  const cols = [
+    { x: 80, label: "coordinator" },
+    { x: 310, label: "agents" },
+    { x: 560, label: "artifacts" },
+    { x: 780, label: "validation" },
+    { x: 960, label: "review" },
+    { x: 1130, label: "next stage" },
+  ];
+
+  const agents = [
+    { y: 70, code: "R-01", label: "Researcher", state: "running" as const },
+    { y: 140, code: "S-01", label: "Strategist", state: "reviewing" as const },
+    { y: 210, code: "U-01", label: "UX", state: "running" as const },
+    { y: 280, code: "A-01", label: "Architect", state: "queued" as const },
+  ];
+
+  const artifacts = [
+    { y: 100, code: "spec-014", state: "hydrating" as const },
+    { y: 180, code: "res-041", state: "ready" as const },
+    { y: 260, code: "arch-007", state: "ready" as const },
+  ];
+
+  const stateColor = (s: string) =>
+    s === "running" || s === "ready"
+      ? "var(--operational)"
+      : s === "reviewing" || s === "hydrating"
+        ? "var(--info)"
+        : s === "queued"
+          ? "var(--muted-foreground)"
+          : "var(--warning)";
+
+  return (
+    <div className="w-full">
+      {/* column headers */}
+      <div className="mb-3 grid" style={{ gridTemplateColumns: "repeat(6, 1fr)" }}>
+        {cols.map((c) => (
+          <div key={c.label} className="text-label text-muted-foreground" style={{ fontSize: 10, letterSpacing: "0.08em" }}>
+            {c.label}
+          </div>
+        ))}
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} className="block h-[340px] w-full">
+        <defs>
+          <linearGradient id="edge-op" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="color-mix(in oklab, var(--operational) 10%, transparent)" />
+            <stop offset="60%" stopColor="var(--operational)" stopOpacity="0.65" />
+            <stop offset="100%" stopColor="color-mix(in oklab, var(--operational) 10%, transparent)" />
+          </linearGradient>
+          <linearGradient id="edge-info" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="color-mix(in oklab, var(--info) 10%, transparent)" />
+            <stop offset="60%" stopColor="var(--info)" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="color-mix(in oklab, var(--info) 10%, transparent)" />
+          </linearGradient>
+          <radialGradient id="node-glow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%" stopColor="var(--operational)" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+        </defs>
+
+        {/* Coordinator hub */}
+        <g transform={`translate(${cols[0].x}, 175)`}>
+          <circle r="40" fill="url(#node-glow)" />
+          <circle r="22" fill="color-mix(in oklab, var(--surface-op-elevated) 100%, transparent)" stroke="var(--operational)" strokeWidth="1" />
+          <circle r="6" fill="var(--operational)">
+            <animate attributeName="r" values="5;7;5" dur="2.4s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="1;0.6;1" dur="2.4s" repeatCount="indefinite" />
+          </circle>
+          <text y="52" textAnchor="middle" fill="var(--foreground)" style={{ font: "500 12px var(--font-sans, Inter)" }}>Coordinator</text>
+          <text y="68" textAnchor="middle" fill="var(--muted-foreground)" style={{ font: "10px var(--font-mono, JetBrains Mono)" }}>C-01 · dispatch</text>
+        </g>
+
+        {/* Coordinator → Agents edges */}
+        {agents.map((a, i) => {
+          const x1 = cols[0].x + 24;
+          const y1 = 175;
+          const x2 = cols[1].x - 30;
+          const y2 = a.y;
+          const cx = (x1 + x2) / 2;
+          const d = `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
+          const active = a.state === "running";
+          return (
+            <g key={`c2a-${i}`}>
+              <path d={d} fill="none" stroke="var(--border-op)" strokeWidth="1" />
+              {active ? (
+                <path
+                  d={d}
+                  fill="none"
+                  stroke="var(--operational)"
+                  strokeOpacity="0.55"
+                  strokeWidth="1"
+                  className="flow-dash"
+                />
+              ) : null}
+              {active ? (
+                <circle r="2.5" fill="var(--operational)">
+                  <animateMotion dur={`${2.2 + i * 0.4}s`} repeatCount="indefinite" path={d} />
+                  <animate attributeName="opacity" values="0;1;1;0" dur={`${2.2 + i * 0.4}s`} repeatCount="indefinite" />
+                </circle>
+              ) : null}
+            </g>
+          );
+        })}
+
+        {/* Agent nodes */}
+        {agents.map((a, i) => (
+          <g key={a.code} transform={`translate(${cols[1].x}, ${a.y})`}>
+            <rect x="-30" y="-14" width="60" height="28" rx="6"
+              fill="color-mix(in oklab, var(--surface-op-elevated) 100%, transparent)"
+              stroke={`color-mix(in oklab, ${stateColor(a.state)} 40%, transparent)`} />
+            <text textAnchor="middle" y="4" fill={stateColor(a.state)} style={{ font: "10px var(--font-mono, JetBrains Mono)" }}>
+              {a.code}
+            </text>
+            {a.state === "running" ? (
+              <circle cx="22" cy="-10" r="2" fill="var(--operational)">
+                <animate attributeName="opacity" values="1;0.4;1" dur="1.4s" repeatCount="indefinite" begin={`${i * 0.2}s`} />
+              </circle>
+            ) : null}
+            <text y="30" textAnchor="middle" fill="var(--muted-foreground)" style={{ font: "10px var(--font-mono, JetBrains Mono)" }}>
+              {a.label.toLowerCase()}
+            </text>
+          </g>
+        ))}
+
+        {/* Agents → Artifacts edges (subset that produce) */}
+        {[
+          { from: agents[0], to: artifacts[1] },
+          { from: agents[2], to: artifacts[0] },
+          { from: agents[1], to: artifacts[2] },
+        ].map((e, i) => {
+          const x1 = cols[1].x + 30;
+          const x2 = cols[2].x - 40;
+          const y1 = e.from.y;
+          const y2 = e.to.y;
+          const cx = (x1 + x2) / 2;
+          const d = `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
+          const active = e.from.state === "running" || e.to.state === "hydrating";
+          return (
+            <g key={`a2f-${i}`}>
+              <path d={d} fill="none" stroke="var(--border-op)" strokeWidth="1" />
+              {active ? (
+                <circle r="2" fill={e.to.state === "hydrating" ? "var(--info)" : "var(--operational)"}>
+                  <animateMotion dur={`${2.8 + i * 0.5}s`} repeatCount="indefinite" path={d} />
+                </circle>
+              ) : null}
+            </g>
+          );
+        })}
+
+        {/* Artifact nodes */}
+        {artifacts.map((a) => (
+          <g key={a.code} transform={`translate(${cols[2].x}, ${a.y})`}>
+            <rect x="-40" y="-12" width="80" height="24" rx="4"
+              fill="color-mix(in oklab, var(--surface-op-sunken) 100%, transparent)"
+              stroke="var(--border-op)" />
+            <text textAnchor="middle" y="4" fill="var(--foreground)" style={{ font: "10px var(--font-mono, JetBrains Mono)" }}>
+              {a.code}
+            </text>
+            <circle cx="-32" cy="0" r="2.5" fill={stateColor(a.state)}>
+              {a.state === "hydrating" ? <animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite" /> : null}
+            </circle>
+          </g>
+        ))}
+
+        {/* Artifacts → Validation → Review → Stage */}
+        {artifacts.map((a, i) => {
+          const d1 = `M ${cols[2].x + 40} ${a.y} C ${(cols[2].x + cols[3].x) / 2} ${a.y}, ${(cols[2].x + cols[3].x) / 2} 170, ${cols[3].x - 16} 170`;
+          return (
+            <g key={`f2v-${i}`}>
+              <path d={d1} fill="none" stroke="var(--border-op)" strokeWidth="1" />
+              <circle r="2" fill="var(--info)">
+                <animateMotion dur={`${3.2 + i * 0.4}s`} repeatCount="indefinite" path={d1} />
+                <animate attributeName="opacity" values="0;1;0" dur={`${3.2 + i * 0.4}s`} repeatCount="indefinite" />
+              </circle>
+            </g>
+          );
+        })}
+
+        {/* Validation node */}
+        <g transform={`translate(${cols[3].x}, 170)`}>
+          <rect x="-30" y="-18" width="60" height="36" rx="6"
+            fill="color-mix(in oklab, var(--surface-op-elevated) 100%, transparent)"
+            stroke="color-mix(in oklab, var(--info) 40%, transparent)" />
+          <text textAnchor="middle" y="-2" fill="var(--info)" style={{ font: "10px var(--font-mono, JetBrains Mono)" }}>Q-01</text>
+          <text textAnchor="middle" y="12" fill="var(--muted-foreground)" style={{ font: "9px var(--font-mono, JetBrains Mono)" }}>3 checks</text>
+          <text textAnchor="middle" y="34" fill="var(--muted-foreground)" style={{ font: "10px var(--font-mono, JetBrains Mono)" }}>validation</text>
+        </g>
+
+        {/* Validation → Review edge */}
+        {(() => {
+          const d = `M ${cols[3].x + 30} 170 L ${cols[4].x - 24} 170`;
+          return (
+            <g>
+              <path d={d} fill="none" stroke="var(--border-op)" strokeWidth="1" />
+              <circle r="2.5" fill="var(--warning)">
+                <animateMotion dur="2.6s" repeatCount="indefinite" path={d} />
+              </circle>
+            </g>
+          );
+        })()}
+
+        {/* Review node */}
+        <g transform={`translate(${cols[4].x}, 170)`}>
+          <circle r="22" fill="color-mix(in oklab, var(--surface-op-elevated) 100%, transparent)" stroke="color-mix(in oklab, var(--warning) 45%, transparent)" />
+          <text textAnchor="middle" y="4" fill="var(--warning)" style={{ font: "500 11px var(--font-sans, Inter)" }}>2</text>
+          <text y="42" textAnchor="middle" fill="var(--muted-foreground)" style={{ font: "10px var(--font-mono, JetBrains Mono)" }}>human review</text>
+        </g>
+
+        {/* Review → Next stage */}
+        {(() => {
+          const d = `M ${cols[4].x + 22} 170 L ${cols[5].x - 24} 170`;
+          return (
+            <g>
+              <path d={d} fill="none" stroke="var(--border-op)" strokeWidth="1" strokeDasharray="3 4" />
+            </g>
+          );
+        })()}
+
+        {/* Next stage */}
+        <g transform={`translate(${cols[5].x}, 170)`}>
+          <rect x="-24" y="-16" width="48" height="32" rx="6"
+            fill="transparent"
+            stroke="var(--border-op)" strokeDasharray="3 3" />
+          <text textAnchor="middle" y="4" fill="var(--muted-foreground)" style={{ font: "10px var(--font-mono, JetBrains Mono)" }}>Build</text>
+          <text y="34" textAnchor="middle" fill="var(--muted-foreground)" style={{ font: "10px var(--font-mono, JetBrains Mono)" }}>advance</text>
+        </g>
+      </svg>
+
+      {/* legend */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        {[
+          { c: "var(--operational)", l: "dispatched / running" },
+          { c: "var(--info)", l: "produced / validating" },
+          { c: "var(--warning)", l: "awaiting review" },
+          { c: "var(--muted-foreground)", l: "queued" },
+        ].map((x) => (
+          <span key={x.l} className="text-code inline-flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: 10 }}>
+            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: x.c }} />
+            {x.l}
+          </span>
+        ))}
+        <span className="text-code ml-auto text-muted-foreground" style={{ fontSize: 10 }}>
+          maps to journey_runs → agent_runs → artifact_versions → validation → decision log
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function SystemRail({ now }: { now: Date }) {
   const uptime = useMemo(() => {
