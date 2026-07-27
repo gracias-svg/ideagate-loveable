@@ -1372,6 +1372,7 @@ function OrchestrationLayer() {
 }
 
 function OrchestrationDiagram() {
+  const inspector = useInspector();
   // 6 columns: Coordinator · Agents · Artifacts · Validation · Review · Stage
   // Editorial SVG at fixed viewBox — scales responsively.
   const W = 1200;
@@ -1483,7 +1484,12 @@ function OrchestrationDiagram() {
 
         {/* Agent nodes */}
         {agents.map((a, i) => (
-          <g key={a.code} transform={`translate(${cols[1].x}, ${a.y})`}>
+          <g
+            key={a.code}
+            transform={`translate(${cols[1].x}, ${a.y})`}
+            style={{ cursor: "pointer" }}
+            onClick={() => inspector.open({ kind: "agent", code: a.code })}
+          >
             <rect x="-30" y="-14" width="60" height="28" rx="6"
               fill="color-mix(in oklab, var(--surface-op-elevated) 100%, transparent)"
               stroke={`color-mix(in oklab, ${stateColor(a.state)} 40%, transparent)`} />
@@ -1528,7 +1534,12 @@ function OrchestrationDiagram() {
 
         {/* Artifact nodes */}
         {artifacts.map((a) => (
-          <g key={a.code} transform={`translate(${cols[2].x}, ${a.y})`}>
+          <g
+            key={a.code}
+            transform={`translate(${cols[2].x}, ${a.y})`}
+            style={{ cursor: "pointer" }}
+            onClick={() => inspector.open({ kind: "artifact", id: a.code })}
+          >
             <rect x="-40" y="-12" width="80" height="24" rx="4"
               fill="color-mix(in oklab, var(--surface-op-sunken) 100%, transparent)"
               stroke="var(--border-op)" />
@@ -1556,7 +1567,11 @@ function OrchestrationDiagram() {
         })}
 
         {/* Validation node */}
-        <g transform={`translate(${cols[3].x}, 170)`}>
+        <g
+          transform={`translate(${cols[3].x}, 170)`}
+          style={{ cursor: "pointer" }}
+          onClick={() => inspector.open({ kind: "validation", id: "Q-01" })}
+        >
           <rect x="-30" y="-18" width="60" height="36" rx="6"
             fill="color-mix(in oklab, var(--surface-op-elevated) 100%, transparent)"
             stroke="color-mix(in oklab, var(--info) 40%, transparent)" />
