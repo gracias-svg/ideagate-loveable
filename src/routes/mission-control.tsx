@@ -1181,30 +1181,39 @@ function DecisionsPanel() {
 
 /* ─────────────────────────── Mission Log ─────────────────────────── */
 
-type LogEntry = { t: string; ch: string; kind: string; msg: string; tone?: "op" | "info" | "warn" | "err" };
+type LogTopic = "agents" | "artifacts" | "decisions";
+type LogEntry = {
+  t: string;
+  ch: string;
+  kind: string;
+  msg: string;
+  tone?: "op" | "info" | "warn" | "err";
+  topic: LogTopic;
+};
 
 const LOG_SEED: LogEntry[] = [
-  { t: "08:52:14", ch: "R-01", kind: "synth", msg: "clustered 18 interviews → 5 latent needs", tone: "op" },
-  { t: "08:53:02", ch: "U-01", kind: "draft", msg: "redrew empty-state — 3 candidate patterns", tone: "info" },
-  { t: "08:53:41", ch: "Q-01", kind: "warn", msg: "contradiction: scope disagreement between UX ↔ Architect", tone: "warn" },
-  { t: "08:54:10", ch: "C-01", kind: "route", msg: "escalated DCN-021 → product lead", tone: "info" },
-  { t: "08:54:47", ch: "S-01", kind: "shape", msg: "positioning tightened around 'calm operating layer'", tone: "op" },
-  { t: "08:55:12", ch: "R-01", kind: "cite", msg: "attached 12 source quotes to spec-014", tone: "op" },
-  { t: "08:55:44", ch: "U-01", kind: "hand", msg: "handed spec-014 to A-01 for feasibility pass", tone: "info" },
+  { t: "08:52:14", ch: "R-01", kind: "synth", msg: "clustered 18 interviews → 5 latent needs", tone: "op", topic: "agents" },
+  { t: "08:53:02", ch: "U-01", kind: "draft", msg: "redrew empty-state — 3 candidate patterns", tone: "info", topic: "artifacts" },
+  { t: "08:53:41", ch: "Q-01", kind: "warn", msg: "contradiction: scope disagreement between UX ↔ Architect", tone: "warn", topic: "decisions" },
+  { t: "08:54:10", ch: "C-01", kind: "route", msg: "escalated DCN-021 → product lead", tone: "info", topic: "decisions" },
+  { t: "08:54:47", ch: "S-01", kind: "shape", msg: "positioning tightened around 'calm operating layer'", tone: "op", topic: "agents" },
+  { t: "08:55:12", ch: "R-01", kind: "cite", msg: "attached 12 source quotes to spec-014", tone: "op", topic: "artifacts" },
+  { t: "08:55:44", ch: "U-01", kind: "hand", msg: "handed spec-014 to A-01 for feasibility pass", tone: "info", topic: "artifacts" },
 ];
 
 function MissionLog() {
   const [entries, setEntries] = useState<LogEntry[]>(LOG_SEED);
+  const [filter, setFilter] = useState<"all" | LogTopic>("all");
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // stream new lines periodically
   useEffect(() => {
     const pool: LogEntry[] = [
-      { t: "", ch: "R-01", kind: "trace", msg: "read discovery/interview-11.md", tone: "op" },
-      { t: "", ch: "A-01", kind: "spec", msg: "proposed token migration in 3 phases", tone: "info" },
-      { t: "", ch: "Q-01", kind: "guard", msg: "verified DCN-020 has no downstream conflicts", tone: "op" },
-      { t: "", ch: "C-01", kind: "beat", msg: "rebalanced load: U-01 +18%, S-01 -12%", tone: "info" },
-      { t: "", ch: "R-01", kind: "note", msg: "added observation: onboarding depth ≠ length", tone: "op" },
+      { t: "", ch: "R-01", kind: "trace", msg: "read discovery/interview-11.md", tone: "op", topic: "agents" },
+      { t: "", ch: "A-01", kind: "spec", msg: "proposed token migration in 3 phases", tone: "info", topic: "artifacts" },
+      { t: "", ch: "Q-01", kind: "guard", msg: "verified DCN-020 has no downstream conflicts", tone: "op", topic: "decisions" },
+      { t: "", ch: "C-01", kind: "beat", msg: "rebalanced load: U-01 +18%, S-01 -12%", tone: "info", topic: "agents" },
+      { t: "", ch: "R-01", kind: "note", msg: "added observation: onboarding depth ≠ length", tone: "op", topic: "agents" },
     ];
     let i = 0;
     const t = setInterval(() => {
@@ -1219,7 +1228,9 @@ function MissionLog() {
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [entries]);
+  }, [entries, filter]);
+
+  const visible = filter === "all" ? entries : entries.filter((e) => e.topic === filter);
 
   const toneColor = { op: "var(--operational)", info: "var(--info)", warn: "var(--warning)", err: "var(--destructive)" } as const;
 
@@ -1230,20 +1241,24 @@ function MissionLog() {
       meta="streaming · last 30m"
       action={
         <div className="hidden items-center gap-1.5 md:flex">
-          {["all", "agents", "artifacts", "decisions"].map((f, i) => (
-            <button
-              key={f}
-              className="text-code rounded-md border px-2 py-1 transition-colors"
-              style={{
-                fontSize: 10,
-                borderColor: "var(--border-op)",
-                color: i === 0 ? "var(--foreground)" : "var(--muted-foreground)",
-                background: i === 0 ? "color-mix(in oklab, var(--foreground) 5%, transparent)" : "transparent",
-              }}
-            >
-              {f}
-            </button>
-          ))}
+          {(["all", "agents", "artifacts", "decisions"] as const).map((f) => {
+            const on = f === filter;
+            return (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className="text-code rounded-md border px-2 py-1 transition-colors"
+                style={{
+                  fontSize: 10,
+                  borderColor: on ? "color-mix(in oklab, var(--operational) 40%, transparent)" : "var(--border-op)",
+                  color: on ? "var(--foreground)" : "var(--muted-foreground)",
+                  background: on ? "color-mix(in oklab, var(--operational) 10%, transparent)" : "transparent",
+                }}
+              >
+                {f}
+              </button>
+            );
+          })}
         </div>
       }
     >
@@ -1264,8 +1279,13 @@ function MissionLog() {
           className="max-h-[360px] overflow-y-auto px-6 py-5"
           style={{ scrollBehavior: "smooth" }}
         >
+          {visible.length === 0 ? (
+            <div className="text-caption py-10 text-center text-muted-foreground">
+              No events for <span className="text-foreground">{filter}</span> in the current window.
+            </div>
+          ) : null}
           <ul className="space-y-1.5">
-            {entries.map((e, i) => (
+            {visible.map((e, i) => (
               <li key={`${e.t}-${i}`} className="log-line flex items-baseline gap-3">
                 <span className="tabular-nums" style={{ color: "var(--muted-foreground)", minWidth: 68 }}>
                   {e.t}
@@ -1288,7 +1308,7 @@ function MissionLog() {
                 </span>
                 <span className="text-foreground/85">
                   {e.msg}
-                  {i === entries.length - 1 ? <span className="cli-caret ml-1 align-baseline" /> : null}
+                  {i === visible.length - 1 ? <span className="cli-caret ml-1 align-baseline" /> : null}
                 </span>
               </li>
             ))}
