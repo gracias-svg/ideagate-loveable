@@ -990,6 +990,7 @@ function RecentArtifacts() {
 }
 
 function ArtifactCard({ a }: { a: Artifact }) {
+  const inspector = useInspector();
   const statusColor: Record<Artifact["status"], string> = {
     draft: "var(--muted-foreground)",
     review: "var(--warning)",
@@ -998,7 +999,16 @@ function ArtifactCard({ a }: { a: Artifact }) {
   };
   return (
     <div
-      className="group relative flex flex-col overflow-hidden rounded-xl border p-5 transition-transform duration-300 hover:-translate-y-0.5"
+      role="button"
+      tabIndex={0}
+      onClick={() => inspector.open({ kind: "artifact", id: a.id })}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          inspector.open({ kind: "artifact", id: a.id });
+        }
+      }}
+      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border p-5 transition-transform duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--operational)]"
       style={{
         borderColor: "var(--border-op)",
         background: "color-mix(in oklab, var(--surface-op-elevated) 88%, transparent)",
