@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export const Route = createFileRoute("/mission-control")({
   head: () => ({
@@ -26,11 +26,42 @@ export const Route = createFileRoute("/mission-control")({
 /* ────────────────────────────────────────────────────────────────
  *  Mission Control — the first product surface of IdeaGate
  *  Editorial · Operational · Calm · Alive
+ *
+ *  Backend mapping (every visible surface below binds to one of these):
+ *    HeroJourney       → journey_runs                (current stage, progress, ETA)
+ *    OrchestrationLayer→ coordinator_state + agent_runs + artifact_versions
+ *                        + validation + decision_log (runtime graph)
+ *    ActiveAgents      → agent_runs                  (per-agent live state)
+ *    RecentArtifacts   → artifact_versions           (latest per artifact)
+ *    DecisionsPanel    → decision_log                (open + recent decisions)
+ *    WorkspaceHealth   → analytics (aggregated)      (lifecycle coverage, contradiction load)
+ *    MissionLog        → journey_events (stream)     (channel = agent code)
+ *    SystemRail        → coordinator_state + analytics
+ *    Inspector         → detail read for any of the above (universal viewer)
  * ──────────────────────────────────────────────────────────────── */
+
+/* ─── Universal Inspector context ─────────────────────────────────
+ * Any surface that can be "inspected" calls useInspector().open(...)
+ * The <Inspector /> lives once at the root of Mission Control and
+ * animates in from the right. Same component visualises every entity
+ * kind — it is the universal detail read for the Product OS. */
+
+type Inspectable =
+  | { kind: "journey"; id: string }
+  | { kind: "agent"; code: string }
+  | { kind: "artifact"; id: string }
+  | { kind: "decision"; id: string }
+  | { kind: "validation"; id: string };
+
+const InspectorContext = createContext<{ open: (i: Inspectable) => void }>({
+  open: () => {},
+});
+const useInspector = () => useContext(InspectorContext);
 
 function MissionControl() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const [selected, setSelected] = useState<Inspectable | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -44,6 +75,7 @@ function MissionControl() {
         setPaletteOpen((v) => !v);
       } else if (e.key === "Escape") {
         setPaletteOpen(false);
+        setSelected(null);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -51,6 +83,7 @@ function MissionControl() {
   }, []);
 
   return (
+    <InspectorContext.Provider value={{ open: setSelected }}>
     <div className="dark relative min-h-screen overflow-x-hidden" style={{ background: "var(--surface-op-sunken)", color: "var(--foreground)" }}>
       <AmbientAtmosphere />
 
@@ -93,7 +126,9 @@ function MissionControl() {
       </div>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <Inspector selected={selected} onClose={() => setSelected(null)} />
     </div>
+    </InspectorContext.Provider>
   );
 }
 
@@ -384,6 +419,7 @@ const LIFECYCLE_STAGES = [
 ];
 
 function HeroJourney() {
+  const inspector = useInspector();
   // animated progress
   const [progress, setProgress] = useState(58);
   useEffect(() => {
@@ -466,8 +502,9 @@ function HeroJourney() {
             <button
               className="text-ui inline-flex items-center gap-2 rounded-md border px-3.5 py-2 text-foreground transition-colors hover:border-foreground/40"
               style={{ borderColor: "var(--border-op)", background: "transparent", fontSize: 13 }}
+              onClick={() => inspector.open({ kind: "journey", id: "JRN-014" })}
             >
-              Open canvas
+              Inspect journey
             </button>
             <div className="text-code ml-1 flex items-center gap-2 text-muted-foreground" style={{ fontSize: 11 }}>
               <span>ETA</span>
@@ -620,6 +657,7 @@ function ActiveAgents() {
 }
 
 function AgentCard({ agent: a }: { agent: Agent }) {
+  const inspector = useInspector();
   const stateColor: Record<Agent["state"], string> = {
     running: "var(--operational)",
     reviewing: "var(--info)",
@@ -655,7 +693,16 @@ function AgentCard({ agent: a }: { agent: Agent }) {
 
   return (
     <div
-      className="group relative flex flex-col overflow-hidden rounded-xl border p-4 transition-transform duration-300 hover:-translate-y-0.5"
+      role="button"
+      tabIndex={0}
+      onClick={() => inspector.open({ kind: "agent", code: a.code })}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          inspector.open({ kind: "agent", code: a.code });
+        }
+      }}
+      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border p-4 transition-transform duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--operational)]"
       style={{
         borderColor: "var(--border-op)",
         background:
@@ -943,6 +990,7 @@ function RecentArtifacts() {
 }
 
 function ArtifactCard({ a }: { a: Artifact }) {
+  const inspector = useInspector();
   const statusColor: Record<Artifact["status"], string> = {
     draft: "var(--muted-foreground)",
     review: "var(--warning)",
@@ -951,7 +999,16 @@ function ArtifactCard({ a }: { a: Artifact }) {
   };
   return (
     <div
-      className="group relative flex flex-col overflow-hidden rounded-xl border p-5 transition-transform duration-300 hover:-translate-y-0.5"
+      role="button"
+      tabIndex={0}
+      onClick={() => inspector.open({ kind: "artifact", id: a.id })}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          inspector.open({ kind: "artifact", id: a.id });
+        }
+      }}
+      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border p-5 transition-transform duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--operational)]"
       style={{
         borderColor: "var(--border-op)",
         background: "color-mix(in oklab, var(--surface-op-elevated) 88%, transparent)",
@@ -1055,6 +1112,7 @@ const DECISIONS = [
 ];
 
 function DecisionsPanel() {
+  const inspector = useInspector();
   const toneColor = {
     review: "var(--warning)",
     approved: "var(--operational)",
@@ -1074,8 +1132,9 @@ function DecisionsPanel() {
           {DECISIONS.map((d) => (
             <li
               key={d.id}
-              className="group relative flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_3%,transparent)]"
+              className="group relative flex cursor-pointer items-center gap-4 px-5 py-4 transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_3%,transparent)]"
               style={{ borderColor: "var(--border-op)" }}
+              onClick={() => inspector.open({ kind: "decision", id: d.id })}
             >
               <span
                 aria-hidden
@@ -1122,30 +1181,39 @@ function DecisionsPanel() {
 
 /* ─────────────────────────── Mission Log ─────────────────────────── */
 
-type LogEntry = { t: string; ch: string; kind: string; msg: string; tone?: "op" | "info" | "warn" | "err" };
+type LogTopic = "agents" | "artifacts" | "decisions";
+type LogEntry = {
+  t: string;
+  ch: string;
+  kind: string;
+  msg: string;
+  tone?: "op" | "info" | "warn" | "err";
+  topic: LogTopic;
+};
 
 const LOG_SEED: LogEntry[] = [
-  { t: "08:52:14", ch: "R-01", kind: "synth", msg: "clustered 18 interviews → 5 latent needs", tone: "op" },
-  { t: "08:53:02", ch: "U-01", kind: "draft", msg: "redrew empty-state — 3 candidate patterns", tone: "info" },
-  { t: "08:53:41", ch: "Q-01", kind: "warn", msg: "contradiction: scope disagreement between UX ↔ Architect", tone: "warn" },
-  { t: "08:54:10", ch: "C-01", kind: "route", msg: "escalated DCN-021 → product lead", tone: "info" },
-  { t: "08:54:47", ch: "S-01", kind: "shape", msg: "positioning tightened around 'calm operating layer'", tone: "op" },
-  { t: "08:55:12", ch: "R-01", kind: "cite", msg: "attached 12 source quotes to spec-014", tone: "op" },
-  { t: "08:55:44", ch: "U-01", kind: "hand", msg: "handed spec-014 to A-01 for feasibility pass", tone: "info" },
+  { t: "08:52:14", ch: "R-01", kind: "synth", msg: "clustered 18 interviews → 5 latent needs", tone: "op", topic: "agents" },
+  { t: "08:53:02", ch: "U-01", kind: "draft", msg: "redrew empty-state — 3 candidate patterns", tone: "info", topic: "artifacts" },
+  { t: "08:53:41", ch: "Q-01", kind: "warn", msg: "contradiction: scope disagreement between UX ↔ Architect", tone: "warn", topic: "decisions" },
+  { t: "08:54:10", ch: "C-01", kind: "route", msg: "escalated DCN-021 → product lead", tone: "info", topic: "decisions" },
+  { t: "08:54:47", ch: "S-01", kind: "shape", msg: "positioning tightened around 'calm operating layer'", tone: "op", topic: "agents" },
+  { t: "08:55:12", ch: "R-01", kind: "cite", msg: "attached 12 source quotes to spec-014", tone: "op", topic: "artifacts" },
+  { t: "08:55:44", ch: "U-01", kind: "hand", msg: "handed spec-014 to A-01 for feasibility pass", tone: "info", topic: "artifacts" },
 ];
 
 function MissionLog() {
   const [entries, setEntries] = useState<LogEntry[]>(LOG_SEED);
+  const [filter, setFilter] = useState<"all" | LogTopic>("all");
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // stream new lines periodically
   useEffect(() => {
     const pool: LogEntry[] = [
-      { t: "", ch: "R-01", kind: "trace", msg: "read discovery/interview-11.md", tone: "op" },
-      { t: "", ch: "A-01", kind: "spec", msg: "proposed token migration in 3 phases", tone: "info" },
-      { t: "", ch: "Q-01", kind: "guard", msg: "verified DCN-020 has no downstream conflicts", tone: "op" },
-      { t: "", ch: "C-01", kind: "beat", msg: "rebalanced load: U-01 +18%, S-01 -12%", tone: "info" },
-      { t: "", ch: "R-01", kind: "note", msg: "added observation: onboarding depth ≠ length", tone: "op" },
+      { t: "", ch: "R-01", kind: "trace", msg: "read discovery/interview-11.md", tone: "op", topic: "agents" },
+      { t: "", ch: "A-01", kind: "spec", msg: "proposed token migration in 3 phases", tone: "info", topic: "artifacts" },
+      { t: "", ch: "Q-01", kind: "guard", msg: "verified DCN-020 has no downstream conflicts", tone: "op", topic: "decisions" },
+      { t: "", ch: "C-01", kind: "beat", msg: "rebalanced load: U-01 +18%, S-01 -12%", tone: "info", topic: "agents" },
+      { t: "", ch: "R-01", kind: "note", msg: "added observation: onboarding depth ≠ length", tone: "op", topic: "agents" },
     ];
     let i = 0;
     const t = setInterval(() => {
@@ -1160,7 +1228,9 @@ function MissionLog() {
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [entries]);
+  }, [entries, filter]);
+
+  const visible = filter === "all" ? entries : entries.filter((e) => e.topic === filter);
 
   const toneColor = { op: "var(--operational)", info: "var(--info)", warn: "var(--warning)", err: "var(--destructive)" } as const;
 
@@ -1171,20 +1241,24 @@ function MissionLog() {
       meta="streaming · last 30m"
       action={
         <div className="hidden items-center gap-1.5 md:flex">
-          {["all", "agents", "artifacts", "decisions"].map((f, i) => (
-            <button
-              key={f}
-              className="text-code rounded-md border px-2 py-1 transition-colors"
-              style={{
-                fontSize: 10,
-                borderColor: "var(--border-op)",
-                color: i === 0 ? "var(--foreground)" : "var(--muted-foreground)",
-                background: i === 0 ? "color-mix(in oklab, var(--foreground) 5%, transparent)" : "transparent",
-              }}
-            >
-              {f}
-            </button>
-          ))}
+          {(["all", "agents", "artifacts", "decisions"] as const).map((f) => {
+            const on = f === filter;
+            return (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className="text-code rounded-md border px-2 py-1 transition-colors"
+                style={{
+                  fontSize: 10,
+                  borderColor: on ? "color-mix(in oklab, var(--operational) 40%, transparent)" : "var(--border-op)",
+                  color: on ? "var(--foreground)" : "var(--muted-foreground)",
+                  background: on ? "color-mix(in oklab, var(--operational) 10%, transparent)" : "transparent",
+                }}
+              >
+                {f}
+              </button>
+            );
+          })}
         </div>
       }
     >
@@ -1205,8 +1279,13 @@ function MissionLog() {
           className="max-h-[360px] overflow-y-auto px-6 py-5"
           style={{ scrollBehavior: "smooth" }}
         >
+          {visible.length === 0 ? (
+            <div className="text-caption py-10 text-center text-muted-foreground">
+              No events for <span className="text-foreground">{filter}</span> in the current window.
+            </div>
+          ) : null}
           <ul className="space-y-1.5">
-            {entries.map((e, i) => (
+            {visible.map((e, i) => (
               <li key={`${e.t}-${i}`} className="log-line flex items-baseline gap-3">
                 <span className="tabular-nums" style={{ color: "var(--muted-foreground)", minWidth: 68 }}>
                   {e.t}
@@ -1229,7 +1308,7 @@ function MissionLog() {
                 </span>
                 <span className="text-foreground/85">
                   {e.msg}
-                  {i === entries.length - 1 ? <span className="cli-caret ml-1 align-baseline" /> : null}
+                  {i === visible.length - 1 ? <span className="cli-caret ml-1 align-baseline" /> : null}
                 </span>
               </li>
             ))}
@@ -1293,6 +1372,7 @@ function OrchestrationLayer() {
 }
 
 function OrchestrationDiagram() {
+  const inspector = useInspector();
   // 6 columns: Coordinator · Agents · Artifacts · Validation · Review · Stage
   // Editorial SVG at fixed viewBox — scales responsively.
   const W = 1200;
@@ -1404,7 +1484,12 @@ function OrchestrationDiagram() {
 
         {/* Agent nodes */}
         {agents.map((a, i) => (
-          <g key={a.code} transform={`translate(${cols[1].x}, ${a.y})`}>
+          <g
+            key={a.code}
+            transform={`translate(${cols[1].x}, ${a.y})`}
+            style={{ cursor: "pointer" }}
+            onClick={() => inspector.open({ kind: "agent", code: a.code })}
+          >
             <rect x="-30" y="-14" width="60" height="28" rx="6"
               fill="color-mix(in oklab, var(--surface-op-elevated) 100%, transparent)"
               stroke={`color-mix(in oklab, ${stateColor(a.state)} 40%, transparent)`} />
@@ -1449,7 +1534,12 @@ function OrchestrationDiagram() {
 
         {/* Artifact nodes */}
         {artifacts.map((a) => (
-          <g key={a.code} transform={`translate(${cols[2].x}, ${a.y})`}>
+          <g
+            key={a.code}
+            transform={`translate(${cols[2].x}, ${a.y})`}
+            style={{ cursor: "pointer" }}
+            onClick={() => inspector.open({ kind: "artifact", id: a.code })}
+          >
             <rect x="-40" y="-12" width="80" height="24" rx="4"
               fill="color-mix(in oklab, var(--surface-op-sunken) 100%, transparent)"
               stroke="var(--border-op)" />
@@ -1477,7 +1567,11 @@ function OrchestrationDiagram() {
         })}
 
         {/* Validation node */}
-        <g transform={`translate(${cols[3].x}, 170)`}>
+        <g
+          transform={`translate(${cols[3].x}, 170)`}
+          style={{ cursor: "pointer" }}
+          onClick={() => inspector.open({ kind: "validation", id: "Q-01" })}
+        >
           <rect x="-30" y="-18" width="60" height="36" rx="6"
             fill="color-mix(in oklab, var(--surface-op-elevated) 100%, transparent)"
             stroke="color-mix(in oklab, var(--info) 40%, transparent)" />
@@ -1718,4 +1812,476 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
       </div>
     </div>
   );
+}
+
+/* ─────────────────────────── Universal Inspector ───────────────────────────
+ * A single right-side detail panel used by every entity kind. Same shell,
+ * different body. This is the universal "read" surface of the Product OS.
+ *
+ * Backend mapping per kind:
+ *   journey     → journey_runs
+ *   agent       → agent_runs
+ *   artifact    → artifact_versions
+ *   decision    → decision_log
+ *   validation  → validation
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function Inspector({ selected, onClose }: { selected: Inspectable | null; onClose: () => void }) {
+  const open = !!selected;
+
+  // Scroll-lock while open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  return (
+    <div
+      className={`fixed inset-0 z-[70] ${open ? "pointer-events-auto" : "pointer-events-none"}`}
+      aria-hidden={!open}
+    >
+      {/* backdrop */}
+      <div
+        className={`absolute inset-0 transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`}
+        style={{ background: "color-mix(in oklab, black 45%, transparent)", backdropFilter: "blur(4px)" }}
+        onClick={onClose}
+      />
+      {/* panel */}
+      <aside
+        role="dialog"
+        aria-modal="true"
+        className={`absolute right-0 top-0 flex h-full w-full max-w-[460px] flex-col border-l transition-transform duration-300 ${
+          open ? "translate-x-0" : "translate-x-full"
+        }`}
+        style={{
+          background: "var(--surface-op-elevated)",
+          borderColor: "var(--border-op)",
+          boxShadow: "-24px 0 60px -20px rgba(0,0,0,0.55)",
+        }}
+      >
+        {selected ? <InspectorBody i={selected} onClose={onClose} /> : null}
+      </aside>
+    </div>
+  );
+}
+
+function InspectorBody({ i, onClose }: { i: Inspectable; onClose: () => void }) {
+  const meta = inspectorMeta(i);
+  const [tab, setTab] = useState<"overview" | "events" | "raw">("overview");
+
+  // Reset tab whenever a new entity is opened.
+  useEffect(() => {
+    setTab("overview");
+  }, [i.kind, "code" in i ? i.code : "id" in i ? i.id : ""]);
+
+  return (
+    <>
+      {/* header */}
+      <div className="relative flex items-start justify-between gap-3 border-b px-6 py-5" style={{ borderColor: "var(--border-op)" }}>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-6 top-0 h-px"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, color-mix(in oklab, var(--operational) 55%, transparent), transparent)",
+          }}
+        />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className="text-code rounded-full px-1.5 py-px"
+              style={{
+                fontSize: 9,
+                color: meta.accent,
+                background: `color-mix(in oklab, ${meta.accent} 12%, transparent)`,
+                letterSpacing: "0.06em",
+              }}
+            >
+              {meta.kindLabel}
+            </span>
+            <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
+              {meta.entity}
+            </span>
+            <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>·</span>
+            <span className="text-code text-foreground" style={{ fontSize: 10 }}>{meta.identifier}</span>
+          </div>
+          <h3
+            className="mt-2 text-foreground"
+            style={{ fontFamily: "var(--font-serif)", fontSize: "1.4rem", lineHeight: 1.15, letterSpacing: "-0.015em" }}
+          >
+            {meta.title}
+          </h3>
+          <p className="text-caption mt-1 text-muted-foreground">{meta.subtitle}</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-ui grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)] hover:text-foreground"
+          aria-label="Close inspector"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* tabs */}
+      <div className="flex items-center gap-1 border-b px-4" style={{ borderColor: "var(--border-op)" }}>
+        {(["overview", "events", "raw"] as const).map((t) => {
+          const on = tab === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="text-ui relative px-3 py-2.5 transition-colors"
+              style={{
+                color: on ? "var(--foreground)" : "var(--muted-foreground)",
+                fontSize: 12,
+              }}
+            >
+              {t}
+              {on ? (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-2 bottom-0 h-[2px] rounded-full"
+                  style={{ background: "var(--operational)" }}
+                />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* body */}
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        {tab === "overview" ? <InspectorOverview i={i} /> : null}
+        {tab === "events" ? <InspectorEvents i={i} /> : null}
+        {tab === "raw" ? <InspectorRaw i={i} /> : null}
+      </div>
+
+      {/* footer — persistent backend mapping */}
+      <div
+        className="flex items-center justify-between gap-3 border-t px-6 py-3"
+        style={{ borderColor: "var(--border-op)", background: "color-mix(in oklab, var(--surface-op-sunken) 60%, transparent)" }}
+      >
+        <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
+          binds to <span className="text-foreground">{meta.entity}</span>
+        </span>
+        <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
+          <span className="kbd-key">esc</span> to close
+        </span>
+      </div>
+    </>
+  );
+}
+
+function inspectorMeta(i: Inspectable) {
+  switch (i.kind) {
+    case "journey":
+      return {
+        kindLabel: "journey",
+        entity: "journey_runs",
+        identifier: i.id,
+        accent: "var(--operational)",
+        title: "Reforge the onboarding for enterprise teams",
+        subtitle: "Stage: Design · 6 agents converged · 2 specs awaiting review",
+      };
+    case "agent": {
+      const a = AGENTS.find((x) => x.code === i.code);
+      return {
+        kindLabel: "agent",
+        entity: "agent_runs",
+        identifier: i.code,
+        accent: "var(--operational)",
+        title: a ? a.name : i.code,
+        subtitle: a ? `${a.role} · ${a.state}` : "agent",
+      };
+    }
+    case "artifact": {
+      const a = ARTIFACTS.find((x) => x.id === i.id);
+      return {
+        kindLabel: "artifact",
+        entity: "artifact_versions",
+        identifier: i.id,
+        accent: "var(--info)",
+        title: a ? a.title : i.id,
+        subtitle: a ? `${a.kind} · ${a.status} · by ${a.author}` : "artifact",
+      };
+    }
+    case "decision": {
+      const d = DECISIONS.find((x) => x.id === i.id);
+      return {
+        kindLabel: "decision",
+        entity: "decision_log",
+        identifier: i.id,
+        accent: "var(--warning)",
+        title: d ? d.title : i.id,
+        subtitle: d ? `${d.tone} · ${d.meta}` : "decision",
+      };
+    }
+    case "validation":
+      return {
+        kindLabel: "validation",
+        entity: "validation",
+        identifier: i.id,
+        accent: "var(--info)",
+        title: "Quality validation pass",
+        subtitle: "Q-01 · 3 checks running against spec-014, res-041, arch-007",
+      };
+  }
+}
+
+function InspectorOverview({ i }: { i: Inspectable }) {
+  if (i.kind === "journey") {
+    return (
+      <div className="space-y-6">
+        <KVGrid
+          rows={[
+            ["stage", "Design (4 / 6)"],
+            ["progress", "63%"],
+            ["ETA", "4d · 06h"],
+            ["owner", "Elena Aoki"],
+            ["opened", "Jul 21 · 14:20 UTC"],
+          ]}
+        />
+        <InspectorSection title="Lifecycle path">
+          <ol className="grid grid-cols-6 gap-1">
+            {LIFECYCLE_STAGES.map((s, idx) => {
+              const done = idx < 3;
+              const active = idx === 3;
+              const c = done || active ? "var(--operational)" : "var(--border-op)";
+              return (
+                <li key={s.key} className="flex flex-col items-center gap-1.5">
+                  <span className="h-1 w-full rounded-full" style={{ background: c, opacity: active ? 1 : done ? 0.9 : 0.4 }} />
+                  <span className="text-code" style={{ fontSize: 9, color: active ? "var(--foreground)" : "var(--muted-foreground)" }}>
+                    {s.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </InspectorSection>
+        <InspectorSection title="Signals">
+          <div className="grid grid-cols-3 gap-3">
+            <MiniStat label="Artifacts" value="42" trend="+6" />
+            <MiniStat label="Decisions" value="11" trend="3 pending" tone="warn" />
+            <MiniStat label="Confidence" value="87%" trend="+4" />
+          </div>
+        </InspectorSection>
+      </div>
+    );
+  }
+
+  if (i.kind === "agent") {
+    const a = AGENTS.find((x) => x.code === i.code);
+    if (!a) return <EmptyInspector />;
+    return (
+      <div className="space-y-6">
+        <KVGrid
+          rows={[
+            ["state", a.state],
+            ["role", a.role],
+            ["load", `${Math.round(a.load * 100)}%`],
+            ["tokens (life)", a.tokens.toLocaleString()],
+            ["since", a.since],
+          ]}
+        />
+        <InspectorSection title="Currently">
+          <p className="text-caption text-foreground/85">{a.task}</p>
+        </InspectorSection>
+        <InspectorSection title="Recent runs">
+          <ul className="space-y-1.5">
+            {[
+              { t: "08:52", msg: "synth · 18 interviews clustered", tone: "op" as const },
+              { t: "08:47", msg: "read · discovery/interview-11.md", tone: "op" as const },
+              { t: "08:41", msg: "cite · attached 12 quotes to spec-014", tone: "op" as const },
+            ].map((r, k) => (
+              <li key={k} className="log-line flex items-baseline gap-3">
+                <span className="tabular-nums text-muted-foreground" style={{ minWidth: 44 }}>{r.t}</span>
+                <span className="text-foreground/85">{r.msg}</span>
+              </li>
+            ))}
+          </ul>
+        </InspectorSection>
+      </div>
+    );
+  }
+
+  if (i.kind === "artifact") {
+    const a = ARTIFACTS.find((x) => x.id === i.id);
+    if (!a) return <EmptyInspector />;
+    return (
+      <div className="space-y-6">
+        <KVGrid
+          rows={[
+            ["kind", a.kind],
+            ["status", a.status],
+            ["author", a.author],
+            ["updated", a.updated],
+            ["ai contribution", `${a.aiContribution}%`],
+            ["confidence", a.status === "hydrating" ? "—" : `${a.confidence}%`],
+          ]}
+        />
+        <InspectorSection title="Version history">
+          <ul className="space-y-1.5">
+            {["v3 · current", "v2 · Jul 24", "v1 · Jul 22"].map((v, k) => (
+              <li key={k} className="log-line flex items-baseline gap-3">
+                <span className="text-foreground/85">{v}</span>
+              </li>
+            ))}
+          </ul>
+        </InspectorSection>
+        <InspectorSection title="Sections">
+          <div className="text-caption grid grid-cols-2 gap-1 text-muted-foreground">
+            <span>§ problem framing</span>
+            <span>§ personas</span>
+            <span>§ flows</span>
+            <span>§ success metrics</span>
+            <span>§ risks</span>
+          </div>
+        </InspectorSection>
+      </div>
+    );
+  }
+
+  if (i.kind === "decision") {
+    const d = DECISIONS.find((x) => x.id === i.id);
+    if (!d) return <EmptyInspector />;
+    return (
+      <div className="space-y-6">
+        <KVGrid
+          rows={[
+            ["tone", d.tone],
+            ["proposer", d.by],
+            ["state", d.meta],
+          ]}
+        />
+        <InspectorSection title="Threads">
+          <ul className="space-y-2">
+            {["S-01 tightened the framing around 'calm operating layer'.", "Elena requested a validation pass before merging.", "Q-01 flagged one downstream conflict."].map((t, k) => (
+              <li key={k} className="text-caption text-foreground/85">— {t}</li>
+            ))}
+          </ul>
+        </InspectorSection>
+      </div>
+    );
+  }
+
+  // validation
+  return (
+    <div className="space-y-6">
+      <KVGrid
+        rows={[
+          ["agent", "Q-01"],
+          ["checks", "3"],
+          ["scope", "spec-014 · res-041 · arch-007"],
+          ["state", "running"],
+        ]}
+      />
+      <InspectorSection title="Checks">
+        <ul className="space-y-1.5">
+          {[
+            { t: "spec-014 · contradiction scan", ok: false },
+            { t: "res-041 · evidence coverage", ok: true },
+            { t: "arch-007 · downstream conflicts", ok: true },
+          ].map((c, k) => (
+            <li key={k} className="log-line flex items-center gap-3">
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: c.ok ? "var(--operational)" : "var(--warning)" }}
+              />
+              <span className="text-foreground/85">{c.t}</span>
+            </li>
+          ))}
+        </ul>
+      </InspectorSection>
+    </div>
+  );
+}
+
+function InspectorEvents({ i }: { i: Inspectable }) {
+  const channel =
+    i.kind === "agent"
+      ? i.code
+      : i.kind === "validation"
+        ? "Q-01"
+        : i.kind === "artifact"
+          ? i.id
+          : i.kind === "decision"
+            ? i.id
+            : "JRN-014";
+  const rows = [
+    { t: "08:55:44", msg: "hand · handed to A-01 for feasibility pass" },
+    { t: "08:55:12", msg: "cite · attached 12 source quotes" },
+    { t: "08:54:47", msg: "shape · tightened positioning" },
+    { t: "08:54:10", msg: "route · escalated DCN-021" },
+    { t: "08:53:41", msg: "warn · contradiction with A-01" },
+    { t: "08:53:02", msg: "draft · redrew empty-state" },
+  ];
+  return (
+    <div>
+      <div className="text-label mb-3 text-muted-foreground" style={{ fontSize: 10 }}>
+        events · channel {channel}
+      </div>
+      <ul className="space-y-1.5">
+        {rows.map((r, k) => (
+          <li key={k} className="log-line flex items-baseline gap-3">
+            <span className="tabular-nums text-muted-foreground" style={{ minWidth: 68 }}>{r.t}</span>
+            <span className="text-foreground/85">{r.msg}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function InspectorRaw({ i }: { i: Inspectable }) {
+  const meta = inspectorMeta(i);
+  const raw = {
+    entity: meta.entity,
+    id: meta.identifier,
+    kind: i.kind,
+    title: meta.title,
+    _mapping: `visualised from ${meta.entity}`,
+  };
+  return (
+    <pre
+      className="log-line overflow-x-auto rounded-md border p-3"
+      style={{ borderColor: "var(--border-op)", background: "color-mix(in oklab, var(--surface-op-sunken) 70%, transparent)" }}
+    >
+      {JSON.stringify(raw, null, 2)}
+    </pre>
+  );
+}
+
+function InspectorSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-label mb-2 text-muted-foreground" style={{ fontSize: 10 }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function KVGrid({ rows }: { rows: [string, string][] }) {
+  return (
+    <dl
+      className="grid grid-cols-[110px_1fr] gap-y-2 rounded-md border p-3"
+      style={{ borderColor: "var(--border-op)", background: "color-mix(in oklab, var(--surface-op-sunken) 60%, transparent)" }}
+    >
+      {rows.map(([k, v]) => (
+        <div key={k} className="contents">
+          <dt className="text-code text-muted-foreground" style={{ fontSize: 10 }}>{k}</dt>
+          <dd className="text-ui text-foreground/90" style={{ fontSize: 12 }}>{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function EmptyInspector() {
+  return <div className="text-caption text-muted-foreground">No record found for this identifier.</div>;
 }
