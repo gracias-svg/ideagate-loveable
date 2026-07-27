@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export const Route = createFileRoute("/mission-control")({
   head: () => ({
@@ -26,11 +26,42 @@ export const Route = createFileRoute("/mission-control")({
 /* ────────────────────────────────────────────────────────────────
  *  Mission Control — the first product surface of IdeaGate
  *  Editorial · Operational · Calm · Alive
+ *
+ *  Backend mapping (every visible surface below binds to one of these):
+ *    HeroJourney       → journey_runs                (current stage, progress, ETA)
+ *    OrchestrationLayer→ coordinator_state + agent_runs + artifact_versions
+ *                        + validation + decision_log (runtime graph)
+ *    ActiveAgents      → agent_runs                  (per-agent live state)
+ *    RecentArtifacts   → artifact_versions           (latest per artifact)
+ *    DecisionsPanel    → decision_log                (open + recent decisions)
+ *    WorkspaceHealth   → analytics (aggregated)      (lifecycle coverage, contradiction load)
+ *    MissionLog        → journey_events (stream)     (channel = agent code)
+ *    SystemRail        → coordinator_state + analytics
+ *    Inspector         → detail read for any of the above (universal viewer)
  * ──────────────────────────────────────────────────────────────── */
+
+/* ─── Universal Inspector context ─────────────────────────────────
+ * Any surface that can be "inspected" calls useInspector().open(...)
+ * The <Inspector /> lives once at the root of Mission Control and
+ * animates in from the right. Same component visualises every entity
+ * kind — it is the universal detail read for the Product OS. */
+
+type Inspectable =
+  | { kind: "journey"; id: string }
+  | { kind: "agent"; code: string }
+  | { kind: "artifact"; id: string }
+  | { kind: "decision"; id: string }
+  | { kind: "validation"; id: string };
+
+const InspectorContext = createContext<{ open: (i: Inspectable) => void }>({
+  open: () => {},
+});
+const useInspector = () => useContext(InspectorContext);
 
 function MissionControl() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const [selected, setSelected] = useState<Inspectable | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -44,6 +75,7 @@ function MissionControl() {
         setPaletteOpen((v) => !v);
       } else if (e.key === "Escape") {
         setPaletteOpen(false);
+        setSelected(null);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -51,6 +83,7 @@ function MissionControl() {
   }, []);
 
   return (
+    <InspectorContext.Provider value={{ open: setSelected }}>
     <div className="dark relative min-h-screen overflow-x-hidden" style={{ background: "var(--surface-op-sunken)", color: "var(--foreground)" }}>
       <AmbientAtmosphere />
 
@@ -93,7 +126,9 @@ function MissionControl() {
       </div>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <Inspector selected={selected} onClose={() => setSelected(null)} />
     </div>
+    </InspectorContext.Provider>
   );
 }
 
