@@ -657,6 +657,7 @@ function ActiveAgents() {
 }
 
 function AgentCard({ agent: a }: { agent: Agent }) {
+  const inspector = useInspector();
   const stateColor: Record<Agent["state"], string> = {
     running: "var(--operational)",
     reviewing: "var(--info)",
@@ -692,7 +693,16 @@ function AgentCard({ agent: a }: { agent: Agent }) {
 
   return (
     <div
-      className="group relative flex flex-col overflow-hidden rounded-xl border p-4 transition-transform duration-300 hover:-translate-y-0.5"
+      role="button"
+      tabIndex={0}
+      onClick={() => inspector.open({ kind: "agent", code: a.code })}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          inspector.open({ kind: "agent", code: a.code });
+        }
+      }}
+      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border p-4 transition-transform duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--operational)]"
       style={{
         borderColor: "var(--border-op)",
         background:
