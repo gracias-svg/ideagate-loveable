@@ -419,6 +419,7 @@ const LIFECYCLE_STAGES = [
 ];
 
 function HeroJourney() {
+  const inspector = useInspector();
   // animated progress
   const [progress, setProgress] = useState(58);
   useEffect(() => {
@@ -501,8 +502,9 @@ function HeroJourney() {
             <button
               className="text-ui inline-flex items-center gap-2 rounded-md border px-3.5 py-2 text-foreground transition-colors hover:border-foreground/40"
               style={{ borderColor: "var(--border-op)", background: "transparent", fontSize: 13 }}
+              onClick={() => inspector.open({ kind: "journey", id: "JRN-014" })}
             >
-              Open canvas
+              Inspect journey
             </button>
             <div className="text-code ml-1 flex items-center gap-2 text-muted-foreground" style={{ fontSize: 11 }}>
               <span>ETA</span>
