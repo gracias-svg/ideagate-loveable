@@ -1813,3 +1813,475 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
     </div>
   );
 }
+
+/* ─────────────────────────── Universal Inspector ───────────────────────────
+ * A single right-side detail panel used by every entity kind. Same shell,
+ * different body. This is the universal "read" surface of the Product OS.
+ *
+ * Backend mapping per kind:
+ *   journey     → journey_runs
+ *   agent       → agent_runs
+ *   artifact    → artifact_versions
+ *   decision    → decision_log
+ *   validation  → validation
+ * ────────────────────────────────────────────────────────────────────────── */
+
+function Inspector({ selected, onClose }: { selected: Inspectable | null; onClose: () => void }) {
+  const open = !!selected;
+
+  // Scroll-lock while open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  return (
+    <div
+      className={`fixed inset-0 z-[70] ${open ? "pointer-events-auto" : "pointer-events-none"}`}
+      aria-hidden={!open}
+    >
+      {/* backdrop */}
+      <div
+        className={`absolute inset-0 transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`}
+        style={{ background: "color-mix(in oklab, black 45%, transparent)", backdropFilter: "blur(4px)" }}
+        onClick={onClose}
+      />
+      {/* panel */}
+      <aside
+        role="dialog"
+        aria-modal="true"
+        className={`absolute right-0 top-0 flex h-full w-full max-w-[460px] flex-col border-l transition-transform duration-300 ${
+          open ? "translate-x-0" : "translate-x-full"
+        }`}
+        style={{
+          background: "var(--surface-op-elevated)",
+          borderColor: "var(--border-op)",
+          boxShadow: "-24px 0 60px -20px rgba(0,0,0,0.55)",
+        }}
+      >
+        {selected ? <InspectorBody i={selected} onClose={onClose} /> : null}
+      </aside>
+    </div>
+  );
+}
+
+function InspectorBody({ i, onClose }: { i: Inspectable; onClose: () => void }) {
+  const meta = inspectorMeta(i);
+  const [tab, setTab] = useState<"overview" | "events" | "raw">("overview");
+
+  // Reset tab whenever a new entity is opened.
+  useEffect(() => {
+    setTab("overview");
+  }, [i.kind, "code" in i ? i.code : "id" in i ? i.id : ""]);
+
+  return (
+    <>
+      {/* header */}
+      <div className="relative flex items-start justify-between gap-3 border-b px-6 py-5" style={{ borderColor: "var(--border-op)" }}>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-6 top-0 h-px"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, color-mix(in oklab, var(--operational) 55%, transparent), transparent)",
+          }}
+        />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className="text-code rounded-full px-1.5 py-px"
+              style={{
+                fontSize: 9,
+                color: meta.accent,
+                background: `color-mix(in oklab, ${meta.accent} 12%, transparent)`,
+                letterSpacing: "0.06em",
+              }}
+            >
+              {meta.kindLabel}
+            </span>
+            <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
+              {meta.entity}
+            </span>
+            <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>·</span>
+            <span className="text-code text-foreground" style={{ fontSize: 10 }}>{meta.identifier}</span>
+          </div>
+          <h3
+            className="mt-2 text-foreground"
+            style={{ fontFamily: "var(--font-serif)", fontSize: "1.4rem", lineHeight: 1.15, letterSpacing: "-0.015em" }}
+          >
+            {meta.title}
+          </h3>
+          <p className="text-caption mt-1 text-muted-foreground">{meta.subtitle}</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-ui grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_6%,transparent)] hover:text-foreground"
+          aria-label="Close inspector"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* tabs */}
+      <div className="flex items-center gap-1 border-b px-4" style={{ borderColor: "var(--border-op)" }}>
+        {(["overview", "events", "raw"] as const).map((t) => {
+          const on = tab === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="text-ui relative px-3 py-2.5 transition-colors"
+              style={{
+                color: on ? "var(--foreground)" : "var(--muted-foreground)",
+                fontSize: 12,
+              }}
+            >
+              {t}
+              {on ? (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-2 bottom-0 h-[2px] rounded-full"
+                  style={{ background: "var(--operational)" }}
+                />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* body */}
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        {tab === "overview" ? <InspectorOverview i={i} /> : null}
+        {tab === "events" ? <InspectorEvents i={i} /> : null}
+        {tab === "raw" ? <InspectorRaw i={i} /> : null}
+      </div>
+
+      {/* footer — persistent backend mapping */}
+      <div
+        className="flex items-center justify-between gap-3 border-t px-6 py-3"
+        style={{ borderColor: "var(--border-op)", background: "color-mix(in oklab, var(--surface-op-sunken) 60%, transparent)" }}
+      >
+        <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
+          binds to <span className="text-foreground">{meta.entity}</span>
+        </span>
+        <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>
+          <span className="kbd-key">esc</span> to close
+        </span>
+      </div>
+    </>
+  );
+}
+
+function inspectorMeta(i: Inspectable) {
+  switch (i.kind) {
+    case "journey":
+      return {
+        kindLabel: "journey",
+        entity: "journey_runs",
+        identifier: i.id,
+        accent: "var(--operational)",
+        title: "Reforge the onboarding for enterprise teams",
+        subtitle: "Stage: Design · 6 agents converged · 2 specs awaiting review",
+      };
+    case "agent": {
+      const a = AGENTS.find((x) => x.code === i.code);
+      return {
+        kindLabel: "agent",
+        entity: "agent_runs",
+        identifier: i.code,
+        accent: "var(--operational)",
+        title: a ? a.name : i.code,
+        subtitle: a ? `${a.role} · ${a.state}` : "agent",
+      };
+    }
+    case "artifact": {
+      const a = ARTIFACTS.find((x) => x.id === i.id);
+      return {
+        kindLabel: "artifact",
+        entity: "artifact_versions",
+        identifier: i.id,
+        accent: "var(--info)",
+        title: a ? a.title : i.id,
+        subtitle: a ? `${a.kind} · ${a.status} · by ${a.author}` : "artifact",
+      };
+    }
+    case "decision": {
+      const d = DECISIONS.find((x) => x.id === i.id);
+      return {
+        kindLabel: "decision",
+        entity: "decision_log",
+        identifier: i.id,
+        accent: "var(--warning)",
+        title: d ? d.title : i.id,
+        subtitle: d ? `${d.tone} · ${d.meta}` : "decision",
+      };
+    }
+    case "validation":
+      return {
+        kindLabel: "validation",
+        entity: "validation",
+        identifier: i.id,
+        accent: "var(--info)",
+        title: "Quality validation pass",
+        subtitle: "Q-01 · 3 checks running against spec-014, res-041, arch-007",
+      };
+  }
+}
+
+function InspectorOverview({ i }: { i: Inspectable }) {
+  if (i.kind === "journey") {
+    return (
+      <div className="space-y-6">
+        <KVGrid
+          rows={[
+            ["stage", "Design (4 / 6)"],
+            ["progress", "63%"],
+            ["ETA", "4d · 06h"],
+            ["owner", "Elena Aoki"],
+            ["opened", "Jul 21 · 14:20 UTC"],
+          ]}
+        />
+        <InspectorSection title="Lifecycle path">
+          <ol className="grid grid-cols-6 gap-1">
+            {LIFECYCLE_STAGES.map((s, idx) => {
+              const done = idx < 3;
+              const active = idx === 3;
+              const c = done || active ? "var(--operational)" : "var(--border-op)";
+              return (
+                <li key={s.key} className="flex flex-col items-center gap-1.5">
+                  <span className="h-1 w-full rounded-full" style={{ background: c, opacity: active ? 1 : done ? 0.9 : 0.4 }} />
+                  <span className="text-code" style={{ fontSize: 9, color: active ? "var(--foreground)" : "var(--muted-foreground)" }}>
+                    {s.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </InspectorSection>
+        <InspectorSection title="Signals">
+          <div className="grid grid-cols-3 gap-3">
+            <MiniStat label="Artifacts" value="42" trend="+6" />
+            <MiniStat label="Decisions" value="11" trend="3 pending" tone="warn" />
+            <MiniStat label="Confidence" value="87%" trend="+4" />
+          </div>
+        </InspectorSection>
+      </div>
+    );
+  }
+
+  if (i.kind === "agent") {
+    const a = AGENTS.find((x) => x.code === i.code);
+    if (!a) return <EmptyInspector />;
+    return (
+      <div className="space-y-6">
+        <KVGrid
+          rows={[
+            ["state", a.state],
+            ["role", a.role],
+            ["load", `${Math.round(a.load * 100)}%`],
+            ["tokens (life)", a.tokens.toLocaleString()],
+            ["since", a.since],
+          ]}
+        />
+        <InspectorSection title="Currently">
+          <p className="text-caption text-foreground/85">{a.task}</p>
+        </InspectorSection>
+        <InspectorSection title="Recent runs">
+          <ul className="space-y-1.5">
+            {[
+              { t: "08:52", msg: "synth · 18 interviews clustered", tone: "op" as const },
+              { t: "08:47", msg: "read · discovery/interview-11.md", tone: "op" as const },
+              { t: "08:41", msg: "cite · attached 12 quotes to spec-014", tone: "op" as const },
+            ].map((r, k) => (
+              <li key={k} className="log-line flex items-baseline gap-3">
+                <span className="tabular-nums text-muted-foreground" style={{ minWidth: 44 }}>{r.t}</span>
+                <span className="text-foreground/85">{r.msg}</span>
+              </li>
+            ))}
+          </ul>
+        </InspectorSection>
+      </div>
+    );
+  }
+
+  if (i.kind === "artifact") {
+    const a = ARTIFACTS.find((x) => x.id === i.id);
+    if (!a) return <EmptyInspector />;
+    return (
+      <div className="space-y-6">
+        <KVGrid
+          rows={[
+            ["kind", a.kind],
+            ["status", a.status],
+            ["author", a.author],
+            ["updated", a.updated],
+            ["ai contribution", `${a.aiContribution}%`],
+            ["confidence", a.status === "hydrating" ? "—" : `${a.confidence}%`],
+          ]}
+        />
+        <InspectorSection title="Version history">
+          <ul className="space-y-1.5">
+            {["v3 · current", "v2 · Jul 24", "v1 · Jul 22"].map((v, k) => (
+              <li key={k} className="log-line flex items-baseline gap-3">
+                <span className="text-foreground/85">{v}</span>
+              </li>
+            ))}
+          </ul>
+        </InspectorSection>
+        <InspectorSection title="Sections">
+          <div className="text-caption grid grid-cols-2 gap-1 text-muted-foreground">
+            <span>§ problem framing</span>
+            <span>§ personas</span>
+            <span>§ flows</span>
+            <span>§ success metrics</span>
+            <span>§ risks</span>
+          </div>
+        </InspectorSection>
+      </div>
+    );
+  }
+
+  if (i.kind === "decision") {
+    const d = DECISIONS.find((x) => x.id === i.id);
+    if (!d) return <EmptyInspector />;
+    return (
+      <div className="space-y-6">
+        <KVGrid
+          rows={[
+            ["tone", d.tone],
+            ["proposer", d.by],
+            ["state", d.meta],
+          ]}
+        />
+        <InspectorSection title="Threads">
+          <ul className="space-y-2">
+            {["S-01 tightened the framing around 'calm operating layer'.", "Elena requested a validation pass before merging.", "Q-01 flagged one downstream conflict."].map((t, k) => (
+              <li key={k} className="text-caption text-foreground/85">— {t}</li>
+            ))}
+          </ul>
+        </InspectorSection>
+      </div>
+    );
+  }
+
+  // validation
+  return (
+    <div className="space-y-6">
+      <KVGrid
+        rows={[
+          ["agent", "Q-01"],
+          ["checks", "3"],
+          ["scope", "spec-014 · res-041 · arch-007"],
+          ["state", "running"],
+        ]}
+      />
+      <InspectorSection title="Checks">
+        <ul className="space-y-1.5">
+          {[
+            { t: "spec-014 · contradiction scan", ok: false },
+            { t: "res-041 · evidence coverage", ok: true },
+            { t: "arch-007 · downstream conflicts", ok: true },
+          ].map((c, k) => (
+            <li key={k} className="log-line flex items-center gap-3">
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: c.ok ? "var(--operational)" : "var(--warning)" }}
+              />
+              <span className="text-foreground/85">{c.t}</span>
+            </li>
+          ))}
+        </ul>
+      </InspectorSection>
+    </div>
+  );
+}
+
+function InspectorEvents({ i }: { i: Inspectable }) {
+  const channel =
+    i.kind === "agent"
+      ? i.code
+      : i.kind === "validation"
+        ? "Q-01"
+        : i.kind === "artifact"
+          ? i.id
+          : i.kind === "decision"
+            ? i.id
+            : "JRN-014";
+  const rows = [
+    { t: "08:55:44", msg: "hand · handed to A-01 for feasibility pass" },
+    { t: "08:55:12", msg: "cite · attached 12 source quotes" },
+    { t: "08:54:47", msg: "shape · tightened positioning" },
+    { t: "08:54:10", msg: "route · escalated DCN-021" },
+    { t: "08:53:41", msg: "warn · contradiction with A-01" },
+    { t: "08:53:02", msg: "draft · redrew empty-state" },
+  ];
+  return (
+    <div>
+      <div className="text-label mb-3 text-muted-foreground" style={{ fontSize: 10 }}>
+        events · channel {channel}
+      </div>
+      <ul className="space-y-1.5">
+        {rows.map((r, k) => (
+          <li key={k} className="log-line flex items-baseline gap-3">
+            <span className="tabular-nums text-muted-foreground" style={{ minWidth: 68 }}>{r.t}</span>
+            <span className="text-foreground/85">{r.msg}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function InspectorRaw({ i }: { i: Inspectable }) {
+  const meta = inspectorMeta(i);
+  const raw = {
+    entity: meta.entity,
+    id: meta.identifier,
+    kind: i.kind,
+    title: meta.title,
+    _mapping: `visualised from ${meta.entity}`,
+  };
+  return (
+    <pre
+      className="log-line overflow-x-auto rounded-md border p-3"
+      style={{ borderColor: "var(--border-op)", background: "color-mix(in oklab, var(--surface-op-sunken) 70%, transparent)" }}
+    >
+      {JSON.stringify(raw, null, 2)}
+    </pre>
+  );
+}
+
+function InspectorSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-label mb-2 text-muted-foreground" style={{ fontSize: 10 }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function KVGrid({ rows }: { rows: [string, string][] }) {
+  return (
+    <dl
+      className="grid grid-cols-[110px_1fr] gap-y-2 rounded-md border p-3"
+      style={{ borderColor: "var(--border-op)", background: "color-mix(in oklab, var(--surface-op-sunken) 60%, transparent)" }}
+    >
+      {rows.map(([k, v]) => (
+        <div key={k} className="contents">
+          <dt className="text-code text-muted-foreground" style={{ fontSize: 10 }}>{k}</dt>
+          <dd className="text-ui text-foreground/90" style={{ fontSize: 12 }}>{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function EmptyInspector() {
+  return <div className="text-caption text-muted-foreground">No record found for this identifier.</div>;
+}
