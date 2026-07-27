@@ -1112,6 +1112,7 @@ const DECISIONS = [
 ];
 
 function DecisionsPanel() {
+  const inspector = useInspector();
   const toneColor = {
     review: "var(--warning)",
     approved: "var(--operational)",
@@ -1131,8 +1132,9 @@ function DecisionsPanel() {
           {DECISIONS.map((d) => (
             <li
               key={d.id}
-              className="group relative flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_3%,transparent)]"
+              className="group relative flex cursor-pointer items-center gap-4 px-5 py-4 transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_3%,transparent)]"
               style={{ borderColor: "var(--border-op)" }}
+              onClick={() => inspector.open({ kind: "decision", id: d.id })}
             >
               <span
                 aria-hidden
