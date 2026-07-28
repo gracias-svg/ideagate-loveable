@@ -13,6 +13,7 @@ import { Route as MissionControlRouteImport } from './routes/mission-control'
 import { Route as IntelligenceRouteImport } from './routes/intelligence'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as FoundationRouteImport } from './routes/foundation'
+import { Route as DeskRouteImport } from './routes/desk'
 import { Route as IndexRouteImport } from './routes/index'
 
 const MissionControlRoute = MissionControlRouteImport.update({
@@ -35,6 +36,11 @@ const FoundationRoute = FoundationRouteImport.update({
   path: '/foundation',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeskRoute = DeskRouteImport.update({
+  id: '/desk',
+  path: '/desk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +49,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/desk': typeof DeskRoute
   '/foundation': typeof FoundationRoute
   '/insights': typeof InsightsRoute
   '/intelligence': typeof IntelligenceRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/desk': typeof DeskRoute
   '/foundation': typeof FoundationRoute
   '/insights': typeof InsightsRoute
   '/intelligence': typeof IntelligenceRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/desk': typeof DeskRoute
   '/foundation': typeof FoundationRoute
   '/insights': typeof InsightsRoute
   '/intelligence': typeof IntelligenceRoute
@@ -67,15 +76,23 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/desk'
     | '/foundation'
     | '/insights'
     | '/intelligence'
     | '/mission-control'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/foundation' | '/insights' | '/intelligence' | '/mission-control'
+  to:
+    | '/'
+    | '/desk'
+    | '/foundation'
+    | '/insights'
+    | '/intelligence'
+    | '/mission-control'
   id:
     | '__root__'
     | '/'
+    | '/desk'
     | '/foundation'
     | '/insights'
     | '/intelligence'
@@ -84,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DeskRoute: typeof DeskRoute
   FoundationRoute: typeof FoundationRoute
   InsightsRoute: typeof InsightsRoute
   IntelligenceRoute: typeof IntelligenceRoute
@@ -120,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FoundationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/desk': {
+      id: '/desk'
+      path: '/desk'
+      fullPath: '/desk'
+      preLoaderRoute: typeof DeskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -132,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DeskRoute: DeskRoute,
   FoundationRoute: FoundationRoute,
   InsightsRoute: InsightsRoute,
   IntelligenceRoute: IntelligenceRoute,
