@@ -57,7 +57,7 @@ export type Artifact = {
   /** short stable id used in the UI, e.g. res-041 */
   id: string;
   /** H1 of the generated markdown */
-  title: string;
+  title?: string;
   /** human-readable artifact name (sidebar) */
   name: string;
   docType: string;
