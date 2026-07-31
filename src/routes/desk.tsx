@@ -388,6 +388,8 @@ function PopulatedDesk() {
             </p>
           </div>
 
+          <DailyBrief />
+
           <div className="flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2" style={{ borderColor: "var(--border-op)", background: "var(--surface-op)" }}>
             <div className="flex flex-wrap items-center gap-1">
               {TABS.map((t) => {
@@ -536,8 +538,67 @@ function StatusDot({ state }: { state: Artifact["state"] }) {
 
 /* ─── ARTIFACT CARD → artifact file + journey.json stages[N] ─────────── */
 
+
+/* ─── DAILY BRIEF → journey.json head state, above the library ────────
+ *  What changed since the user last looked. Reads, never asks.
+ * ──────────────────────────────────────────────────────────────────── */
+
+function DailyBrief() {
+  const generated = ARTIFACTS.filter((a) => a.state === "generated");
+  const running = ARTIFACTS.filter((a) => a.state === "generating");
+  const queued = ARTIFACTS.filter((a) => a.state === "queued");
+  const attention = ARTIFACTS.filter((a) => a.status === "warnings" || a.status === "changes");
+  const latest = generated.slice().sort((a, b) => (a.updatedMin ?? 1e6) - (b.updatedMin ?? 1e6))[0];
+  const pct = Math.round((generated.length / ARTIFACTS.length) * 100);
+
+  return (
+    <section
+      className="mb-6 overflow-hidden rounded-2xl border"
+      style={{ borderColor: "var(--border-op)", background: "var(--surface-op-elevated)", animation: "ig-fade-up 420ms var(--ease-out) both" }}
+      aria-label="Daily brief"
+    >
+      <div className="flex flex-wrap items-start gap-x-10 gap-y-6 px-6 py-5">
+        <div className="min-w-[260px] flex-1">
+          <div className="text-label text-muted-foreground" style={{ fontSize: 10 }}>daily brief</div>
+          <p className="mt-2 text-foreground" style={{ fontFamily: "var(--font-serif)", fontSize: 20, lineHeight: 1.35, letterSpacing: "-0.01em" }}>
+            {generated.length} of {ARTIFACTS.length} artifacts written.{" "}
+            {running.length ? `${running.map((r) => r.name).join(" and ")} ${running.length > 1 ? "are" : "is"} being written now.` : "The run is idle."}
+          </p>
+          <p className="mt-2 text-muted-foreground" style={{ fontSize: 13.5, lineHeight: 1.6 }}>
+            {latest ? `Last change: ${latest.name} · ${latest.updatedMin}m ago.` : "No changes yet."}{" "}
+            {attention.length ? `${attention.length} artifacts need a decision before the run can pass validation.` : "Nothing is waiting on you."}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-8">
+          {[
+            { k: "progress", v: `${pct}%`, tone: "var(--operational)" },
+            { k: "running", v: String(running.length), tone: "var(--info)" },
+            { k: "queued", v: String(queued.length), tone: "var(--muted-foreground)" },
+            { k: "needs review", v: String(attention.length), tone: attention.length ? "var(--warning)" : "var(--muted-foreground)" },
+          ].map((m) => (
+            <div key={m.k}>
+              <div className="text-code tabular-nums" style={{ fontSize: 22, color: m.tone }}>{m.v}</div>
+              <div className="text-code mt-1 text-muted-foreground" style={{ fontSize: 10, opacity: 0.65 }}>{m.k}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="h-[3px] w-full" style={{ background: "color-mix(in oklab, var(--foreground) 7%, transparent)" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: "var(--operational)", transition: "width 600ms var(--ease-out)" }} />
+      </div>
+    </section>
+  );
+}
+
 function ArtifactCard({ artifact, index, density }: { artifact: Artifact; index: number; density: "cozy" | "dense" }) {
   const reader = useReader();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const openHere = () => {
+    const r = cardRef.current?.getBoundingClientRect();
+    reader.open(artifact.id, r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null);
+  };
   const [hover, setHover] = useState(false);
   const cat = categoryOf(artifact.stage);
   const pending = artifact.state !== "generated";
@@ -566,6 +627,7 @@ function ArtifactCard({ artifact, index, density }: { artifact: Artifact; index:
 
   return (
     <div
+      ref={cardRef}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
       className="relative flex flex-col overflow-hidden rounded-2xl border p-5 transition-all duration-300 ease-out"
       style={{ borderColor: hover ? "color-mix(in oklab, var(--operational) 35%, var(--border-op))" : "var(--border-op)", background: "var(--surface-op-elevated)", transform: hover ? "translateY(-2px)" : "translateY(0)", boxShadow: hover ? "0 26px 54px -32px rgba(0,0,0,0.6)" : "0 12px 32px -24px rgba(0,0,0,0.45)", animation: `ig-fade-up 480ms var(--ease-out) ${Math.min(index * 50, 450)}ms both` }}
@@ -581,7 +643,7 @@ function ArtifactCard({ artifact, index, density }: { artifact: Artifact; index:
         <span className="text-code text-muted-foreground tabular-nums" style={{ fontSize: 10 }}>{artifact.id}</span>
       </div>
 
-      <button onClick={() => reader.open(artifact.id)} className="mt-3 pl-2 text-left text-foreground" style={{ fontFamily: "var(--font-serif)", fontSize: dense ? 18 : 22, lineHeight: 1.2, letterSpacing: "-0.01em" }}>{artifact.title}</button>
+      <button onClick={openHere} className="mt-3 pl-2 text-left text-foreground" style={{ fontFamily: "var(--font-serif)", fontSize: dense ? 18 : 22, lineHeight: 1.2, letterSpacing: "-0.01em" }}>{artifact.title}</button>
       {!dense ? (<p className="mt-3 pl-2 text-muted-foreground" style={{ fontSize: 13.5, lineHeight: 1.6 }}>{artifact.summary}</p>) : null}
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 pl-2 text-muted-foreground">
@@ -598,7 +660,7 @@ function ArtifactCard({ artifact, index, density }: { artifact: Artifact; index:
           <MiniMeter label="confidence" value={conf} tone="op" suffix={artifact.confidence} />
           <span className="text-code inline-flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: 9 }}>ai<span style={{ color: "var(--info)" }}>v{artifact.version}</span></span>
         </div>
-        <button onClick={() => reader.open(artifact.id)} className="text-ui inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground" style={{ fontSize: 12 }}>
+        <button onClick={openHere} className="text-ui inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground" style={{ fontSize: 12 }}>
           Open
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ transform: hover ? "translateX(2px)" : "translateX(0)", transition: "transform 200ms var(--ease-out)" }}><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
