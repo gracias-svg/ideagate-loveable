@@ -94,7 +94,7 @@ function DeskBackdrop() {
 type NavItem = { id: string; label: string; kbd?: string; href?: string; active?: boolean; disabled?: boolean };
 const DESK_NAV: NavItem[] = [
   { id: "desk", label: "Desk", kbd: "D", href: "/desk", active: true },
-  { id: "studio", label: "Studio", kbd: "S", disabled: true },
+  { id: "studio", label: "Studio", kbd: "S", href: "/studio" },
   { id: "mc", label: "Mission Control", kbd: "M", href: "/mission-control" },
   { id: "settings", label: "Settings", kbd: "," },
   { id: "profile", label: "Profile", kbd: "P" },
