@@ -238,7 +238,7 @@ function DocumentPaper({ artifact, dirty, onDirty }: { artifact: Artifact; dirty
             </span>
           </div>
 
-          <h1 style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.22, letterSpacing: "-0.015em" }}>{artifact.title}</h1>
+          <h1 style={{ color: ink, fontSize: 28, fontWeight: 700, lineHeight: 1.22, letterSpacing: "-0.015em" }}>{artifact.title}</h1>
           <div className="mt-3" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: muted, opacity: 0.7 }}>
             {artifact.agent} · v{artifact.version} · {artifact.confidence} confidence · {artifact.readMin} min read
           </div>
@@ -246,7 +246,7 @@ function DocumentPaper({ artifact, dirty, onDirty }: { artifact: Artifact; dirty
           <div ref={ref} onInput={onDirty}>
             {sections.map((s) => (
               <section key={s.heading} id={slug(s.heading)} className="mt-9 scroll-mt-8">
-                <h2 style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>{s.heading}</h2>
+                <h2 style={{ color: ink, fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>{s.heading}</h2>
                 {s.blocks.map((b, i) => {
                   if (b.kind === "p") return <p key={i} className="mt-3" style={{ fontSize: 15, lineHeight: 1.75, color: "#2c2a26" }}>{b.text}</p>;
                   if (b.kind === "ul") return (
