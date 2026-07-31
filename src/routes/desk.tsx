@@ -644,59 +644,177 @@ function SmallSelect({ label, value, options, onChange }: { label: string; value
   );
 }
 
-/* ─── READING VIEW → persisted artifact markdown ─────────────────────── */
+/* ─── ARTIFACT READER → persisted artifact markdown (read-only) ──────
+ *  Expand-in-place: the card's rect is the animation origin, so the card
+ *  appears to unfold into the reading surface rather than a modal appearing.
+ * ──────────────────────────────────────────────────────────────────── */
 
-function ReadingView({ id, onClose }: { id: string | null; onClose: () => void }) {
-  const open = id !== null;
-  const artifact = id ? ARTIFACTS.find((a) => a.id === id) : null;
+function ArtifactReader({ id, origin, onClose }: { id: string | null; origin: Origin; onClose: () => void }) {
+  const artifact = id ? ARTIFACTS.find((a) => a.id === id) ?? null : null;
+  const [mounted, setMounted] = useState<Artifact | null>(null);
+  const [entered, setEntered] = useState(false);
+
   useEffect(() => {
-    if (!open) return;
+    if (artifact) {
+      setMounted(artifact);
+      setEntered(false);
+      const raf = requestAnimationFrame(() => requestAnimationFrame(() => setEntered(true)));
+      return () => cancelAnimationFrame(raf);
+    }
+    setEntered(false);
+    const t = setTimeout(() => setMounted(null), 220);
+    return () => clearTimeout(t);
+  }, [artifact]);
+
+  useEffect(() => {
+    if (!artifact) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
-  }, [open]);
+  }, [artifact]);
+
+  if (!mounted) return null;
+
+  const collapsed = origin
+    ? { top: origin.top, left: origin.left, width: origin.width, height: origin.height }
+    : { top: "48%", left: "50%", width: 420, height: 260, transform: "translate(-50%,-50%)" as const };
+
+  const expandedStyle: React.CSSProperties = {
+    top: "5vh",
+    left: "50%",
+    width: "min(920px, calc(100vw - 48px))",
+    height: "90vh",
+    transform: "translateX(-50%)",
+  };
+
+  const cat = categoryOf(mounted.stage);
+  const sections = bodyOf(mounted);
+  const downstream = (mounted.downstream ?? []).map((d) => ARTIFACTS.find((a) => a.id === d)).filter(Boolean) as Artifact[];
 
   return (
     <>
-      <div onClick={onClose} aria-hidden className="fixed inset-0 z-50 transition-opacity duration-300" style={{ background: "color-mix(in oklab, #000 62%, transparent)", opacity: open ? 1 : 0, pointerEvents: open ? "auto" : "none" }} />
-      <div role="dialog" aria-modal="true" className="fixed inset-y-0 right-0 z-50 w-full max-w-[760px] overflow-y-auto border-l transition-transform duration-400" style={{ background: "var(--surface-op)", borderColor: "var(--border-op)", transform: open ? "translateX(0)" : "translateX(100%)", transitionTimingFunction: "var(--ease-out)" }}>
-        {artifact ? (
-          <div>
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b px-8 py-4" style={{ background: "var(--surface-op)", borderColor: "var(--border-op)" }}>
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <span className="text-code" style={{ fontSize: 10 }}>{WORKSPACE_PATH}{artifact.outputFile}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-code rounded-md border px-2 py-1 text-muted-foreground" style={{ fontSize: 10, borderColor: "var(--border-op)", opacity: 0.6 }}>Open in Studio · soon</span>
-                <button onClick={onClose} className="text-code rounded-md border px-2 py-1 text-muted-foreground transition-colors hover:text-foreground" style={{ borderColor: "var(--border-op)", fontSize: 10 }}>esc</button>
+      <div
+        onClick={onClose}
+        aria-hidden
+        className="fixed inset-0 z-50"
+        style={{
+          background: "rgba(0,0,0,0.6)",
+          backdropFilter: "blur(3px)",
+          opacity: entered ? 1 : 0,
+          transition: "opacity 200ms var(--ease-out)",
+        }}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={mounted.title}
+        className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border"
+        style={{
+          ...(entered ? expandedStyle : collapsed),
+          background: "var(--surface-op-elevated)",
+          borderColor: entered ? "color-mix(in oklab, var(--operational) 24%, var(--border-op))" : "var(--border-op)",
+          boxShadow: "0 40px 90px -40px rgba(0,0,0,0.75)",
+          opacity: entered ? 1 : 0.6,
+          transition: "top 200ms cubic-bezier(0.22,1,0.32,1), left 200ms cubic-bezier(0.22,1,0.32,1), width 200ms cubic-bezier(0.22,1,0.32,1), height 200ms cubic-bezier(0.22,1,0.32,1), transform 200ms cubic-bezier(0.22,1,0.32,1), opacity 160ms ease-out, border-color 200ms",
+        }}
+      >
+        {/* header */}
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b px-8 py-4" style={{ borderColor: "var(--border-op)" }}>
+          <span className="text-code truncate text-muted-foreground" style={{ fontSize: 11, opacity: 0.6 }}>
+            {WORKSPACE_PATH}{mounted.outputFile}
+          </span>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/studio"
+              search={{ artifact: mounted.id }}
+              className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-medium transition-transform duration-150 hover:-translate-y-px"
+              style={{ background: "var(--operational)", color: "#0a1a12", fontSize: 13 }}
+            >
+              Open in Studio
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </Link>
+            <button onClick={onClose} className="text-code rounded-md border px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground" style={{ borderColor: "var(--border-op)", fontSize: 10 }}>esc</button>
+          </div>
+        </div>
+
+        {/* body */}
+        <div className="min-h-0 flex-1 overflow-y-auto" style={{ opacity: entered ? 1 : 0, transition: "opacity 180ms ease-out 80ms" }}>
+          <article className="mx-auto max-w-[720px] px-10 py-10">
+            <div className="text-code mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-muted-foreground" style={{ fontSize: 11, opacity: 0.6 }}>
+              <span style={{ color: CATEGORY_COLOR[cat] }}>{cat}</span>
+              <span>stage {mounted.stage}</span>
+              <span>{mounted.agent}</span>
+              <span>v{mounted.version}</span>
+              <span>{mounted.confidence} confidence</span>
+              <span>{mounted.readMin} min read</span>
+            </div>
+
+            <h1 className="text-foreground" style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.015em" }}>{mounted.title}</h1>
+
+            {sections.map((sec) => (
+              <section key={sec.heading} className="mt-8">
+                <h2 className="text-foreground" style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>{sec.heading}</h2>
+                {sec.blocks.map((b, i) => {
+                  if (b.kind === "p") return <p key={i} className="mt-3 text-foreground/80" style={{ fontSize: 15, fontWeight: 400, lineHeight: 1.75 }}>{b.text}</p>;
+                  if (b.kind === "ul") return (
+                    <ul key={i} className="mt-3 space-y-2">
+                      {b.items.map((it) => (
+                        <li key={it} className="flex gap-3 text-foreground/80" style={{ fontSize: 15, lineHeight: 1.75 }}>
+                          <span aria-hidden className="mt-[0.65em] h-1 w-1 shrink-0 rounded-full" style={{ background: "var(--operational)" }} />
+                          <span>{it}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                  return (
+                    <div key={i} className="mt-4 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-op)" }}>
+                      <table className="w-full border-collapse text-left">
+                        <thead>
+                          <tr>{b.head.map((h) => (<th key={h} className="text-label px-4 py-2 text-muted-foreground" style={{ fontSize: 10, borderBottom: "1px solid var(--border-op)" }}>{h}</th>))}</tr>
+                        </thead>
+                        <tbody>
+                          {b.rows.map((r, ri) => (
+                            <tr key={ri}>{r.map((c, ci) => (<td key={ci} className="px-4 py-2 text-foreground/80" style={{ fontSize: 14, lineHeight: 1.6, borderTop: ri ? "1px solid var(--border-op)" : "none" }}>{c}</td>))}</tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </section>
+            ))}
+
+            {/* metadata tier → journey.json stages[N] */}
+            <div className="mt-10 border-t pt-6" style={{ borderColor: "var(--border-op)" }}>
+              <div className="text-label text-muted-foreground" style={{ fontSize: 10 }}>metadata</div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
+                {[
+                  ["agent", `${mounted.agent} · ${AGENTS.find((a) => a.code === mounted.agent)?.name ?? ""}`],
+                  ["confidence", mounted.confidence ?? "—"],
+                  ["version", `v${mounted.version}`],
+                  ["validation", mounted.status ?? "—"],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <dt className="text-code text-muted-foreground" style={{ fontSize: 11, opacity: 0.6 }}>{k}</dt>
+                    <dd className="text-ui mt-1 text-foreground" style={{ fontSize: 13 }}>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="mt-6">
+                <div className="text-code text-muted-foreground" style={{ fontSize: 11, opacity: 0.6 }}>downstream dependencies</div>
+                {downstream.length ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {downstream.map((d) => (
+                      <span key={d.id} className="text-ui rounded-md border px-2.5 py-1 text-muted-foreground" style={{ fontSize: 12, borderColor: "var(--border-op)" }}>{d.name}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-ui mt-2 text-muted-foreground" style={{ fontSize: 13 }}>No artifact consumes this one yet.</div>
+                )}
               </div>
             </div>
-            <article className="px-8 py-10 sm:px-14">
-              <div className="text-code mb-4 flex flex-wrap items-center gap-3 text-muted-foreground" style={{ fontSize: 10 }}>
-                <span style={{ color: CATEGORY_COLOR[categoryOf(artifact.stage)] }}>{categoryOf(artifact.stage)}</span>
-                <span>stage {artifact.stage}</span>
-                <span>{artifact.agent}</span>
-                <span>v{artifact.version}</span>
-                <span>{artifact.readMin} min read</span>
-              </div>
-              <h1 className="text-foreground" style={{ fontFamily: "var(--font-serif)", fontSize: 38, lineHeight: 1.12, letterSpacing: "-0.02em" }}>{artifact.title}</h1>
-              <p className="mt-6 text-foreground/85" style={{ fontSize: 17, lineHeight: 1.75 }}>{artifact.summary}</p>
-              <div className="mt-10 rounded-xl border p-5" style={{ borderColor: "var(--border-op)", background: "var(--surface-op-elevated)" }}>
-                <div className="text-label mb-2 text-muted-foreground" style={{ fontSize: 10 }}>agent reasoning · journey.json</div>
-                <p className="text-muted-foreground" style={{ fontSize: 14, lineHeight: 1.7 }}>{artifact.reasoning}</p>
-                <div className="text-code mt-4 flex items-center gap-4 text-muted-foreground" style={{ fontSize: 10 }}>
-                  <span>confidence · <span style={{ color: "var(--operational)" }}>{artifact.confidence}</span></span>
-                  <span>status · {artifact.status}</span>
-                </div>
-              </div>
-              <div className="mt-8 rounded-xl border px-5 py-4" style={{ borderColor: "var(--border-op)", borderStyle: "dashed" }}>
-                <div className="text-code text-muted-foreground" style={{ fontSize: 10, lineHeight: 1.7 }}>
-                  Full artifact body renders from {artifact.outputFile} once the workspace filesystem is connected. Reading only — editing lives in Studio.
-                </div>
-              </div>
-            </article>
-          </div>
-        ) : null}
+          </article>
+        </div>
       </div>
     </>
   );
