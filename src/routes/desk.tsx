@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   AGENTS, ARTIFACTS, CATEGORIES, CATEGORY_COLOR, CONFIDENCE_SCORE, MODELS, PRESETS,
-  PROJECT_NAME, WORKSPACE_PATH, categoryOf,
+  PROJECT_NAME, WORKSPACE_PATH, categoryOf, bodyOf,
   type Artifact, type Category,
 } from "@/lib/desk-data";
 
@@ -33,7 +33,8 @@ export const Route = createFileRoute("/desk")({
  *    CommandPalette   → artifact index (future: full-text search)
  * ══════════════════════════════════════════════════════════════════════ */
 
-const ReaderContext = createContext<{ open: (id: string) => void }>({ open: () => {} });
+type Origin = { top: number; left: number; width: number; height: number } | null;
+const ReaderContext = createContext<{ open: (id: string, origin?: Origin) => void }>({ open: () => {} });
 const useReader = () => useContext(ReaderContext);
 
 type Phase = "empty" | "initializing" | "populated";
@@ -43,6 +44,8 @@ function DeskPage() {
   const [idea, setIdea] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [readerId, setReaderId] = useState<string | null>(null);
+  const [readerOrigin, setReaderOrigin] = useState<Origin>(null);
+  const openReader = (id: string, origin: Origin = null) => { setReaderOrigin(origin); setReaderId(id); };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,7 +57,7 @@ function DeskPage() {
   }, []);
 
   return (
-    <ReaderContext.Provider value={{ open: setReaderId }}>
+    <ReaderContext.Provider value={{ open: openReader }}>
       <div className="dark relative min-h-screen overflow-x-hidden" style={{ background: "var(--surface-op-sunken)", color: "var(--foreground)" }}>
         <DeskBackdrop />
         <div className="relative z-10 flex min-h-screen">
@@ -70,8 +73,8 @@ function DeskPage() {
             )}
           </div>
         </div>
-        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onOpenArtifact={(id) => { setPaletteOpen(false); setReaderId(id); }} />
-        <ReadingView id={readerId} onClose={() => setReaderId(null)} />
+        <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onOpenArtifact={(id) => { setPaletteOpen(false); openReader(id); }} />
+        <ArtifactReader id={readerId} origin={readerOrigin} onClose={() => setReaderId(null)} />
       </div>
     </ReaderContext.Provider>
   );
