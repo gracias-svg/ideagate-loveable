@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StudioRouteImport } from './routes/studio'
 import { Route as MissionControlRouteImport } from './routes/mission-control'
 import { Route as IntelligenceRouteImport } from './routes/intelligence'
 import { Route as InsightsRouteImport } from './routes/insights'
@@ -16,6 +17,11 @@ import { Route as FoundationRouteImport } from './routes/foundation'
 import { Route as DeskRouteImport } from './routes/desk'
 import { Route as IndexRouteImport } from './routes/index'
 
+const StudioRoute = StudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MissionControlRoute = MissionControlRouteImport.update({
   id: '/mission-control',
   path: '/mission-control',
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/insights': typeof InsightsRoute
   '/intelligence': typeof IntelligenceRoute
   '/mission-control': typeof MissionControlRoute
+  '/studio': typeof StudioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/insights': typeof InsightsRoute
   '/intelligence': typeof IntelligenceRoute
   '/mission-control': typeof MissionControlRoute
+  '/studio': typeof StudioRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/insights': typeof InsightsRoute
   '/intelligence': typeof IntelligenceRoute
   '/mission-control': typeof MissionControlRoute
+  '/studio': typeof StudioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/intelligence'
     | '/mission-control'
+    | '/studio'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/intelligence'
     | '/mission-control'
+    | '/studio'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/insights'
     | '/intelligence'
     | '/mission-control'
+    | '/studio'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,10 +118,18 @@ export interface RootRouteChildren {
   InsightsRoute: typeof InsightsRoute
   IntelligenceRoute: typeof IntelligenceRoute
   MissionControlRoute: typeof MissionControlRoute
+  StudioRoute: typeof StudioRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mission-control': {
       id: '/mission-control'
       path: '/mission-control'
@@ -162,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   InsightsRoute: InsightsRoute,
   IntelligenceRoute: IntelligenceRoute,
   MissionControlRoute: MissionControlRoute,
+  StudioRoute: StudioRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
