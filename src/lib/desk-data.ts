@@ -291,7 +291,7 @@ export function bodyOf(a: Artifact): DocSection[] {
 }
 
 export const PRESETS: { label: string; idea: string }[] = [
-  { label: "SaaS product", idea: "A calm, async-first standup for distributed product teams that composes a morning brief instead of holding a meeting." },
+  { label: "Retail SaaS", idea: PRODUCT_IDEA },
   { label: "Mobile app", idea: "A mobile app that turns a runner's weekly training into a single readable page their coach can review in two minutes." },
   { label: "Internal tool", idea: "An internal tool that gives support engineers one searchable timeline of everything that happened to a customer account." },
   { label: "AI feature", idea: "An AI feature inside a design tool that explains why a layout fails accessibility rules and proposes a corrected version." },
