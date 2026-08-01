@@ -199,73 +199,255 @@ function DeskTopbar({ phase, onOpenPalette, onNewIdea }: { phase: Phase; onOpenP
 
 /* ─── STATE 1 · EMPTY ────────────────────────────────────────────────── */
 
+/* ─── MISSION CONFIGURATION PANEL ────────────────────────────────────────
+ *  Backend mapping:
+ *    goal            → journey_config.goal (prompt preset)
+ *    executionMode   → journey_config.mode (reasoning budget)
+ *    outputFormat    → journey_config.output_format
+ *    strategy        → orchestration_strategy (only "standard" implemented)
+ *    modules[]       → journey_config.modules (optional agent capabilities)
+ *    estimate        → derived client-side preview of journey_runs.estimate
+ * ─────────────────────────────────────────────────────────────────────── */
+
+const GOALS = [
+  { id: "lifecycle", label: "End-to-end Lifecycle", hint: "15 stages", icon: "M4 12h16M4 6h16M4 18h10", stages: 15, agents: 6, min: [12, 18] },
+  { id: "discovery", label: "Discovery Only", hint: "stages 0–1", icon: "M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3", stages: 2, agents: 2, min: [3, 5] },
+  { id: "prd", label: "PRD Fast Track", hint: "stages 0,2,7", icon: "M7 3h7l5 5v13H7zM14 3v5h5", stages: 3, agents: 3, min: [4, 7] },
+  { id: "mvp", label: "MVP Definition", hint: "stages 2–6", icon: "M12 3l8 5v8l-8 5-8-5V8z", stages: 5, agents: 3, min: [5, 9] },
+  { id: "ux", label: "UX Sprint", hint: "stages 8–9", icon: "M4 5h16v11H4zM9 20h6", stages: 2, agents: 2, min: [3, 6] },
+  { id: "interview", label: "Interview Prep", hint: "stage 1", icon: "M20 15a3 3 0 01-3 3H8l-4 3V6a3 3 0 013-3h10a3 3 0 013 3z", stages: 1, agents: 1, min: [2, 4] },
+] as const;
+
+const MODES = ["Explore", "Balanced", "Portfolio Quality", "Evidence First", "Speed"] as const;
+const MODE_FACTOR: Record<string, number> = { Explore: 1.1, Balanced: 1, "Portfolio Quality": 1.45, "Evidence First": 1.3, Speed: 0.65 };
+const FORMATS = ["Markdown", "Structured PRD", "Executive Summary", "Developer Handoff"] as const;
+
+const STRATEGIES = [
+  { id: "standard", label: "Standard Lifecycle", locked: false },
+  { id: "debate", label: "Debate: Red vs Blue", locked: true },
+  { id: "council", label: "Council Review", locked: true },
+  { id: "parallel", label: "Parallel Specialists", locked: true },
+  { id: "research", label: "Research First", locked: true },
+] as const;
+
+const MODULES = [
+  { id: "competitive", label: "Competitive Research", agent: "R-01" },
+  { id: "risk", label: "Risk Assessment", agent: "S-01" },
+  { id: "feasibility", label: "Technical Feasibility", agent: "A-01" },
+  { id: "assumption", label: "Assumption Audit", agent: "Q-01" },
+  { id: "uxcritique", label: "UX Critique", agent: "U-01" },
+] as const;
+
 function EmptyDesk({ idea, onIdeaChange, onRun, onSkip }: { idea: string; onIdeaChange: (v: string) => void; onRun: () => void; onSkip: () => void }) {
   return (
-    <main className="relative flex min-h-[calc(100vh-3.5rem)] flex-1 flex-col items-center justify-center px-6 pb-24 pt-16">
-      <h1 className="mb-3 max-w-3xl text-balance text-center" style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(2.75rem, 5vw, 4.25rem)", lineHeight: 1.02, letterSpacing: "-0.02em", animation: "ig-fade-up 800ms var(--ease-out) 120ms both" }}>
-        What are we building today?
-      </h1>
-      <p className="mb-12 max-w-xl text-center text-muted-foreground" style={{ fontSize: 15, lineHeight: 1.55, animation: "ig-fade-up 800ms var(--ease-out) 240ms both" }}>
-        Describe one idea. Six specialist agents run a 15-stage product lifecycle and write every artifact — from discovery to prototype prompt.
-      </p>
-      <div className="w-full max-w-3xl" style={{ animation: "ig-fade-up 900ms var(--ease-out) 360ms both" }}>
-        <IdeaComposer value={idea} onChange={onIdeaChange} onRun={onRun} />
-      </div>
-      <div className="mt-10 flex flex-col items-center gap-3" style={{ animation: "ig-fade-up 900ms var(--ease-out) 520ms both" }}>
-        <div className="text-code text-muted-foreground" style={{ fontSize: 10 }}>or start from a preset</div>
-        <div className="flex flex-wrap justify-center gap-2">
-          {PRESETS.map((p) => (
-            <button key={p.label} onClick={() => onIdeaChange(p.idea)} className="text-ui rounded-full border px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground" style={{ borderColor: "var(--border-op)", background: "color-mix(in oklab, var(--surface-op) 60%, transparent)", fontSize: 12 }}>{p.label}</button>
-          ))}
-        </div>
-        <button onClick={onSkip} className="text-code mt-6 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline" style={{ fontSize: 10 }}>open the existing library →</button>
-      </div>
+    <main className="relative flex min-h-[calc(100vh-3.5rem)] flex-1 flex-col items-center justify-center px-6 pb-20 pt-14">
+      <MissionConfigPanel idea={idea} onIdeaChange={onIdeaChange} onRun={onRun} />
+      <button onClick={onSkip} className="text-code mt-8 text-muted-foreground/60 underline-offset-4 transition-colors hover:text-foreground hover:underline" style={{ fontSize: 10 }}>open the existing library →</button>
     </main>
   );
 }
 
-function IdeaComposer({ value, onChange, onRun }: { value: string; onChange: (v: string) => void; onRun: () => void }) {
-  const [focused, setFocused] = useState(false);
+function MissionConfigPanel({ idea, onIdeaChange, onRun }: { idea: string; onIdeaChange: (v: string) => void; onRun: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [goal, setGoal] = useState<string>("lifecycle");
+  const [mode, setMode] = useState<string>("Balanced");
+  const [format, setFormat] = useState<string>("Markdown");
+  const [strategy] = useState<string>("standard");
+  const [modules, setModules] = useState<string[]>([]);
   const [model, setModel] = useState(MODELS[0]);
-  const expanded = focused || value.length > 0;
-  const canRun = value.trim().length > 4;
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const canRun = idea.trim().length > 4;
+
+  const expand = () => {
+    setExpanded(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const estimate = useMemo(() => {
+    const g = GOALS.find((x) => x.id === goal)!;
+    const words = idea.trim() ? idea.trim().split(/\s+/).length : 0;
+    const scale = words > 40 ? 1.25 : words > 18 ? 1.1 : 1;
+    const f = MODE_FACTOR[mode] * scale;
+    const lo = Math.max(1, Math.round(g.min[0] * f + modules.length * 0.8));
+    const hi = Math.max(lo + 1, Math.round(g.min[1] * f + modules.length * 1.4));
+    const size = words > 40 || goal === "lifecycle" ? "Platform" : words > 18 ? "Product" : "Feature";
+    const agents = Math.min(6, g.agents + new Set(modules.map((m) => MODULES.find((x) => x.id === m)!.agent)).size);
+    return `Estimated: ${size} · ~${lo}–${hi} min · ${agents} agent${agents === 1 ? "" : "s"}`;
+  }, [goal, mode, modules, idea]);
 
   return (
-    <div className="relative rounded-2xl border transition-all duration-300 ease-out" style={{ borderColor: expanded ? "color-mix(in oklab, var(--operational) 45%, var(--border-op))" : "var(--border-op)", background: "var(--surface-op-elevated)", boxShadow: expanded ? "0 30px 80px -44px color-mix(in oklab, var(--operational) 55%, transparent)" : "0 18px 50px -32px rgba(0,0,0,0.5)" }}>
-      <div className="flex items-start gap-3 px-5 pt-4">
-        <div className="mt-1 grid h-7 w-7 shrink-0 place-items-center rounded-md" style={{ background: "color-mix(in oklab, var(--operational) 14%, transparent)", color: "var(--operational)" }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h10M4 18h16" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" /></svg>
+    <div
+      className="w-full transition-[max-width] duration-500"
+      style={{ maxWidth: expanded ? 720 : 620, transitionTimingFunction: "var(--ease-out)" }}
+    >
+      <div
+        onClick={expanded ? undefined : expand}
+        className={`relative overflow-hidden border transition-all duration-500 ${expanded ? "rounded-2xl" : "cursor-text rounded-full hover:border-[color-mix(in_oklab,var(--operational)_40%,var(--border-op))]"}`}
+        style={{
+          borderColor: expanded ? "color-mix(in oklab, var(--operational) 32%, var(--border-op))" : "var(--border-op)",
+          background: "var(--surface-op-elevated)",
+          boxShadow: expanded ? "0 40px 90px -50px rgba(0,0,0,0.85)" : "0 18px 50px -34px rgba(0,0,0,0.6)",
+          transitionTimingFunction: "var(--ease-out)",
+        }}
+      >
+        {/* input row */}
+        <div className={`flex items-start gap-3 ${expanded ? "px-6 pt-6" : "px-5 py-3.5"}`} style={{ transition: "padding 400ms var(--ease-out)" }}>
+          <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md" style={{ background: "color-mix(in oklab, var(--operational) 12%, transparent)", color: "var(--operational)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h10M4 18h16" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" /></svg>
+          </div>
+          <textarea
+            ref={inputRef}
+            value={idea}
+            onChange={(e) => onIdeaChange(e.target.value)}
+            onFocus={expand}
+            onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canRun) { e.preventDefault(); onRun(); } }}
+            rows={expanded ? 2 : 1}
+            placeholder="Describe what you want to build..."
+            className="w-full resize-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground/60"
+            style={{ fontFamily: "var(--font-serif)", fontSize: expanded ? 22 : 17, lineHeight: 1.35, transition: "font-size 300ms var(--ease-out)" }}
+          />
+          {!expanded ? (
+            <button onClick={(e) => { e.stopPropagation(); expand(); }} className="text-ui shrink-0 whitespace-nowrap rounded-full px-4 py-1.5" style={{ background: "var(--operational)", color: "#0a1a12", fontSize: 12 }}>
+              Configure &amp; Run →
+            </button>
+          ) : null}
         </div>
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canRun) { e.preventDefault(); onRun(); } }}
-          rows={expanded ? 3 : 1}
-          placeholder="Describe your idea…"
-          className="w-full resize-none bg-transparent py-2 pr-4 text-foreground outline-none placeholder:text-muted-foreground/70"
-          style={{ fontFamily: "var(--font-serif)", fontSize: expanded ? 22 : 18, lineHeight: 1.35, transition: "font-size 240ms var(--ease-out)" }}
-        />
-      </div>
-      <div className="grid overflow-hidden transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}>
-        <div className="min-h-0">
-          <div className="mx-5 mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 pb-4" style={{ borderColor: "var(--border-op)" }}>
-            <div className="flex items-center gap-3">
-              <SmallSelect label="model" value={model} options={MODELS.map((m) => ({ value: m, label: m }))} onChange={setModel} />
-              <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>15 stages · 6 agents</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-code text-muted-foreground" style={{ fontSize: 10 }}>a full lifecycle typically completes in 8–14 min</span>
-              <button onClick={onRun} disabled={!canRun} className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all disabled:cursor-not-allowed" style={{ background: canRun ? "var(--operational)" : "color-mix(in oklab, var(--operational) 25%, transparent)", color: "#0a1a12" }}>
-                Run lifecycle
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </button>
+
+        {/* unfolding body */}
+        <div className="grid transition-[grid-template-rows] duration-500" style={{ gridTemplateRows: expanded ? "1fr" : "0fr", transitionTimingFunction: "var(--ease-out)" }}>
+          <div className="min-h-0 overflow-hidden">
+            <div className="px-6 pb-6 pt-2" style={{ opacity: expanded ? 1 : 0, transition: "opacity 300ms var(--ease-out) 120ms" }}>
+              <div className="mb-5 flex flex-wrap items-center gap-1.5 border-b pb-4" style={{ borderColor: "var(--border-op)" }}>
+                {PRESETS.map((p) => (
+                  <button key={p.label} onClick={() => onIdeaChange(p.idea)} className="text-code rounded-full border px-2.5 py-1 text-muted-foreground transition-colors hover:text-foreground" style={{ borderColor: "var(--border-op)", fontSize: 10 }}>{p.label}</button>
+                ))}
+              </div>
+
+              <div className="grid gap-x-10 gap-y-7 md:grid-cols-2">
+                {/* LEFT */}
+                <div className="space-y-7">
+                  <ConfigSection title="goal" note="what to produce">
+                    <div className="space-y-0.5">
+                      {GOALS.map((g) => (
+                        <RadioRow key={g.id} selected={goal === g.id} onSelect={() => setGoal(g.id)} label={g.label} hint={g.hint} icon={g.icon} />
+                      ))}
+                    </div>
+                  </ConfigSection>
+
+                  <ConfigSection title="execution mode" note="how to think">
+                    <div className="flex flex-wrap gap-1 rounded-lg border p-1" style={{ borderColor: "var(--border-op)" }}>
+                      {MODES.map((m) => (
+                        <button key={m} onClick={() => setMode(m)} className="text-ui rounded-md px-2.5 py-1.5 transition-colors" style={{ fontSize: 12, background: mode === m ? "color-mix(in oklab, var(--operational) 16%, transparent)" : "transparent", color: mode === m ? "var(--operational)" : "var(--muted-foreground)" }}>{m}</button>
+                      ))}
+                    </div>
+                  </ConfigSection>
+
+                  <ConfigSection title="output format">
+                    <div className="grid grid-cols-2 gap-1">
+                      {FORMATS.map((f) => (
+                        <RadioRow key={f} selected={format === f} onSelect={() => setFormat(f)} label={f} compact />
+                      ))}
+                    </div>
+                  </ConfigSection>
+                </div>
+
+                {/* RIGHT */}
+                <div className="space-y-7">
+                  <ConfigSection title="orchestration strategy" note="how agents coordinate">
+                    <div className="space-y-0.5">
+                      {STRATEGIES.map((s) => (
+                        <RadioRow key={s.id} selected={!s.locked && strategy === s.id} onSelect={() => {}} label={s.label} locked={s.locked} />
+                      ))}
+                    </div>
+                  </ConfigSection>
+
+                  <ConfigSection title="intelligence modules" note="optional capabilities">
+                    <div className="space-y-0.5">
+                      {MODULES.map((m) => {
+                        const on = modules.includes(m.id);
+                        return (
+                          <button key={m.id} onClick={() => setModules((prev) => on ? prev.filter((x) => x !== m.id) : [...prev, m.id])} className="flex w-full items-center justify-between rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]">
+                            <span className="flex items-center gap-2">
+                              <span className="text-ui" style={{ fontSize: 13, color: on ? "var(--foreground)" : "var(--muted-foreground)" }}>{m.label}</span>
+                              <span className="text-code text-muted-foreground/60" style={{ fontSize: 10 }}>{m.agent}</span>
+                            </span>
+                            <span className="relative inline-flex h-[18px] w-[32px] shrink-0 items-center rounded-full transition-colors duration-200" style={{ background: on ? "var(--operational)" : "color-mix(in oklab, var(--foreground) 14%, transparent)" }}>
+                              <span className="absolute h-[13px] w-[13px] rounded-full transition-all duration-200" style={{ left: on ? 16 : 3, background: on ? "#0a1a12" : "var(--muted-foreground)" }} />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </ConfigSection>
+
+                  <ConfigSection title="complexity estimate">
+                    <div className="text-code text-muted-foreground/70" style={{ fontSize: 11, lineHeight: 1.6 }}>
+                      {estimate}
+                      <div className="mt-1 text-muted-foreground/45" style={{ fontSize: 10 }}>updates as you describe the idea</div>
+                    </div>
+                  </ConfigSection>
+                </div>
+              </div>
+
+              {/* footer */}
+              <div className="mt-8 border-t pt-5" style={{ borderColor: "var(--border-op)" }}>
+                <button onClick={onRun} disabled={!canRun} className="text-ui flex w-full items-center justify-center gap-2 rounded-lg py-3 font-medium transition-all disabled:cursor-not-allowed" style={{ background: canRun ? "var(--operational)" : "color-mix(in oklab, var(--operational) 22%, transparent)", color: canRun ? "#0a1a12" : "color-mix(in oklab, var(--foreground) 40%, transparent)", fontSize: 14 }}>
+                  Run Lifecycle
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <SmallSelect label="model" value={model} options={MODELS.map((m) => ({ value: m, label: m }))} onChange={setModel} />
+                    <span className="text-code text-muted-foreground/60" style={{ fontSize: 10 }}>⌘↵ to run</span>
+                  </div>
+                  <button onClick={onRun} disabled={!canRun} className="text-ui text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline disabled:opacity-40" style={{ fontSize: 12 }}>Quick Run · last settings</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function ConfigSection({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <div className="mb-2.5 flex items-baseline gap-2">
+        <h3 className="text-code uppercase text-muted-foreground/70" style={{ fontSize: 11, letterSpacing: "0.1em" }}>{title}</h3>
+        {note ? <span className="text-ui text-muted-foreground/45" style={{ fontSize: 11 }}>{note}</span> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function RadioRow({ selected, onSelect, label, hint, icon, locked, compact }: { selected: boolean; onSelect: () => void; label: string; hint?: string; icon?: string; locked?: boolean; compact?: boolean }) {
+  return (
+    <button
+      onClick={locked ? undefined : onSelect}
+      disabled={locked}
+      className={`flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left transition-colors ${locked ? "cursor-not-allowed" : "hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"}`}
+      style={{ opacity: locked ? 0.4 : 1 }}
+    >
+      <span className="grid h-[14px] w-[14px] shrink-0 place-items-center rounded-full border transition-colors" style={{ borderColor: selected ? "var(--operational)" : "color-mix(in oklab, var(--foreground) 22%, transparent)" }}>
+        {selected ? <span className="h-[6px] w-[6px] rounded-full" style={{ background: "var(--operational)" }} /> : null}
+      </span>
+      {icon && !compact ? (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="shrink-0" style={{ color: selected ? "var(--operational)" : "var(--muted-foreground)" }}>
+          <path d={icon} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : null}
+      <span className="text-ui truncate" style={{ fontSize: 13, color: selected ? "var(--foreground)" : "var(--muted-foreground)" }}>{label}</span>
+      {hint ? <span className="text-code ml-auto shrink-0 text-muted-foreground/50" style={{ fontSize: 10 }}>{hint}</span> : null}
+      {locked ? (
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-muted-foreground">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M7 11V8a5 5 0 0110 0v3M5 11h14v10H5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <span className="text-code" style={{ fontSize: 10 }}>Coming Soon</span>
+        </span>
+      ) : null}
+    </button>
   );
 }
 
