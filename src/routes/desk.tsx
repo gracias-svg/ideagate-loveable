@@ -540,7 +540,7 @@ function GoalRow({ selected, onSelect, label, consequence, icon, locked, dense }
         </span>
         {consequence ? (
           <span
-            className={`text-code mt-0.5 block leading-snug transition-opacity duration-150 ${selected || locked ? "opacity-60" : "opacity-0 group-hover:opacity-50"}`}
+            className={`text-code leading-snug transition-opacity duration-150 ${selected || locked ? "mt-0.5 block opacity-60" : "mt-0.5 hidden opacity-50 group-hover:block"}`}
             style={{ fontSize: 11, color: "var(--muted-foreground)" }}
           >
             {consequence}
