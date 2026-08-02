@@ -210,33 +210,55 @@ function DeskTopbar({ phase, onOpenPalette, onNewIdea }: { phase: Phase; onOpenP
  * ─────────────────────────────────────────────────────────────────────── */
 
 const GOALS = [
-  { id: "lifecycle", label: "End-to-end Lifecycle", hint: "15 stages", icon: "M4 12h16M4 6h16M4 18h10", stages: 15, agents: 6, min: [12, 18] },
-  { id: "discovery", label: "Discovery Only", hint: "stages 0–1", icon: "M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3", stages: 2, agents: 2, min: [3, 5] },
-  { id: "prd", label: "PRD Fast Track", hint: "stages 0,2,7", icon: "M7 3h7l5 5v13H7zM14 3v5h5", stages: 3, agents: 3, min: [4, 7] },
-  { id: "mvp", label: "MVP Definition", hint: "stages 2–6", icon: "M12 3l8 5v8l-8 5-8-5V8z", stages: 5, agents: 3, min: [5, 9] },
-  { id: "ux", label: "UX Sprint", hint: "stages 8–9", icon: "M4 5h16v11H4zM9 20h6", stages: 2, agents: 2, min: [3, 6] },
-  { id: "interview", label: "Interview Prep", hint: "stage 1", icon: "M20 15a3 3 0 01-3 3H8l-4 3V6a3 3 0 013-3h10a3 3 0 013 3z", stages: 1, agents: 1, min: [2, 4] },
+  { id: "lifecycle", label: "End-to-end Lifecycle", hint: "15 stages", consequence: "15 stages · 6 agents · all PM artifacts", icon: "M4 12h16M4 6h16M4 18h10", stages: 15, agents: 6, min: [12, 18] },
+  { id: "discovery", label: "Discovery Only", hint: "stages 0–1", consequence: "Idea → research → problem definition · 3 artifacts", icon: "M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3", stages: 2, agents: 2, min: [3, 5] },
+  { id: "prd", label: "PRD Fast Track", hint: "stages 0,2,7", consequence: "Discovery + PRD · 4 artifacts · ~8 min", icon: "M7 3h7l5 5v13H7zM14 3v5h5", stages: 3, agents: 3, min: [4, 7] },
+  { id: "mvp", label: "MVP Definition", hint: "stages 2–6", consequence: "Discovery through prioritization · 7 artifacts", icon: "M12 3l8 5v8l-8 5-8-5V8z", stages: 5, agents: 3, min: [5, 9] },
+  { id: "ux", label: "UX Sprint", hint: "stages 8–9", consequence: "Design + usability · 3 artifacts · design-focused", icon: "M4 5h16v11H4zM9 20h6", stages: 2, agents: 2, min: [3, 6] },
+  { id: "interview", label: "Interview Prep", hint: "stage 1", consequence: "Portfolio-quality output · structured for PM interviews", icon: "M20 15a3 3 0 01-3 3H8l-4 3V6a3 3 0 013-3h10a3 3 0 013 3z", stages: 1, agents: 1, min: [2, 4] },
 ] as const;
 
 const MODES = ["Explore", "Balanced", "Portfolio Quality", "Evidence First", "Speed"] as const;
 const MODE_FACTOR: Record<string, number> = { Explore: 1.1, Balanced: 1, "Portfolio Quality": 1.45, "Evidence First": 1.3, Speed: 0.65 };
+const MODE_CONSEQUENCE: Record<string, string> = {
+  Explore: "Wide option space · divergent thinking · fewer commitments",
+  Balanced: "Default reasoning budget · pragmatic depth · steady pace",
+  "Portfolio Quality": "Deep reasoning · citation required · slower · more thorough",
+  "Evidence First": "Every claim sourced · research-heavy · conservative confidence",
+  Speed: "Shortest viable reasoning · draft quality · fastest run",
+};
 const FORMATS = ["Markdown", "Structured PRD", "Executive Summary", "Developer Handoff"] as const;
 
 const STRATEGIES = [
-  { id: "standard", label: "Standard Lifecycle", locked: false },
-  { id: "debate", label: "Debate: Red vs Blue", locked: true },
-  { id: "council", label: "Council Review", locked: true },
-  { id: "parallel", label: "Parallel Specialists", locked: true },
-  { id: "research", label: "Research First", locked: true },
+  { id: "standard", label: "Standard Lifecycle", locked: false, consequence: "Sequential stages · one agent owns each artifact" },
+  { id: "debate", label: "Debate: Red vs Blue", locked: true, consequence: "Two opposing agents challenge assumptions before finalizing" },
+  { id: "council", label: "Council Review", locked: true, consequence: "All agents vote on key decisions. Slower. More robust." },
+  { id: "parallel", label: "Parallel Specialists", locked: true, consequence: "Agents work simultaneously on the same stage" },
+  { id: "research", label: "Research First", locked: true, consequence: "Evidence gathering completes before any spec is written" },
 ] as const;
 
 const MODULES = [
-  { id: "competitive", label: "Competitive Research", agent: "R-01" },
-  { id: "risk", label: "Risk Assessment", agent: "S-01" },
-  { id: "feasibility", label: "Technical Feasibility", agent: "A-01" },
-  { id: "assumption", label: "Assumption Audit", agent: "Q-01" },
-  { id: "uxcritique", label: "UX Critique", agent: "U-01" },
+  { id: "competitive", label: "Competitive Research", agent: "R-01", family: "research" },
+  { id: "assumption", label: "Assumption Audit", agent: "Q-01", family: "research" },
+  { id: "risk", label: "Risk Assessment", agent: "S-01", family: "quality" },
+  { id: "feasibility", label: "Technical Feasibility", agent: "A-01", family: "quality" },
+  { id: "uxcritique", label: "UX Critique", agent: "U-01", family: "design" },
 ] as const;
+
+const MODULE_FAMILIES = [
+  { id: "research", label: "Research" },
+  { id: "quality", label: "Quality & Risk" },
+  { id: "design", label: "Design" },
+] as const;
+
+/** preset chip → intelligent pre-selection of goal + execution mode */
+const PRESET_INTENT: Record<string, { goal: string; mode: string }> = {
+  "Retail SaaS": { goal: "lifecycle", mode: "Balanced" },
+  "Mobile app": { goal: "UX Sprint" as unknown as string, mode: "Explore" },
+  "Internal tool": { goal: "prd", mode: "Balanced" },
+  "AI feature": { goal: "mvp", mode: "Portfolio Quality" },
+  Marketplace: { goal: "lifecycle", mode: "Evidence First" },
+};
 
 function EmptyDesk({ idea, onIdeaChange, onRun, onSkip }: { idea: string; onIdeaChange: (v: string) => void; onRun: () => void; onSkip: () => void }) {
   return (
