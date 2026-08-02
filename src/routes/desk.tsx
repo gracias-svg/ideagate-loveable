@@ -551,34 +551,6 @@ function GoalRow({ selected, onSelect, label, consequence, icon, locked, dense }
   );
 }
 
-function RadioRow({ selected, onSelect, label, hint, icon, locked, compact }: { selected: boolean; onSelect: () => void; label: string; hint?: string; icon?: string; locked?: boolean; compact?: boolean }) {
-  return (
-    <button
-      onClick={locked ? undefined : onSelect}
-      disabled={locked}
-      className={`flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left transition-colors ${locked ? "cursor-not-allowed" : "hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"}`}
-      style={{ opacity: locked ? 0.4 : 1 }}
-    >
-      <span className="grid h-[14px] w-[14px] shrink-0 place-items-center rounded-full border transition-colors" style={{ borderColor: selected ? "var(--operational)" : "color-mix(in oklab, var(--foreground) 22%, transparent)" }}>
-        {selected ? <span className="h-[6px] w-[6px] rounded-full" style={{ background: "var(--operational)" }} /> : null}
-      </span>
-      {icon && !compact ? (
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="shrink-0" style={{ color: selected ? "var(--operational)" : "var(--muted-foreground)" }}>
-          <path d={icon} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ) : null}
-      <span className="text-ui truncate" style={{ fontSize: 13, color: selected ? "var(--foreground)" : "var(--muted-foreground)" }}>{label}</span>
-      {hint ? <span className="text-code ml-auto shrink-0 text-muted-foreground/50" style={{ fontSize: 10 }}>{hint}</span> : null}
-      {locked ? (
-        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-muted-foreground">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M7 11V8a5 5 0 0110 0v3M5 11h14v10H5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          <span className="text-code" style={{ fontSize: 10 }}>Coming Soon</span>
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
 /* ─── STATE 1.5 · INITIALIZING ───────────────────────────────────────── */
 
 const INIT_STEPS = [
