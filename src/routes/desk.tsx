@@ -254,7 +254,7 @@ const MODULE_FAMILIES = [
 /** preset chip → intelligent pre-selection of goal + execution mode */
 const PRESET_INTENT: Record<string, { goal: string; mode: string }> = {
   "Retail SaaS": { goal: "lifecycle", mode: "Balanced" },
-  "Mobile app": { goal: "UX Sprint" as unknown as string, mode: "Explore" },
+  "Mobile app": { goal: "ux", mode: "Explore" },
   "Internal tool": { goal: "prd", mode: "Balanced" },
   "AI feature": { goal: "mvp", mode: "Portfolio Quality" },
   Marketplace: { goal: "lifecycle", mode: "Evidence First" },
