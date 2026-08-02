@@ -493,15 +493,61 @@ function MissionConfigPanel({ idea, onIdeaChange, onRun }: { idea: string; onIde
   );
 }
 
-function ConfigSection({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+function ConfigSection({ title, note, children, tier = "secondary" }: { title: string; note?: string; children: React.ReactNode; tier?: "primary" | "secondary" | "tertiary" }) {
+  const size = tier === "primary" ? 12 : tier === "tertiary" ? 10 : 11;
+  const op = tier === "primary" ? 0.85 : tier === "tertiary" ? 0.4 : 0.7;
   return (
     <section>
       <div className="mb-2.5 flex items-baseline gap-2">
-        <h3 className="text-code uppercase text-muted-foreground/70" style={{ fontSize: 11, letterSpacing: "0.1em" }}>{title}</h3>
-        {note ? <span className="text-ui text-muted-foreground/45" style={{ fontSize: 11 }}>{note}</span> : null}
+        <h3 className="text-code uppercase" style={{ fontSize: size, letterSpacing: "0.1em", color: "var(--muted-foreground)", opacity: op }}>{title}</h3>
+        {note ? <span className="text-ui text-muted-foreground/45" style={{ fontSize: tier === "tertiary" ? 10 : 11 }}>{note}</span> : null}
       </div>
       {children}
     </section>
+  );
+}
+
+/* GoalRow → journey_config.goal / orchestration_strategy — option + inline consequence */
+function GoalRow({ selected, onSelect, label, consequence, icon, locked, dense }: { selected: boolean; onSelect: () => void; label: string; consequence?: string; icon?: string; locked?: boolean; dense?: boolean }) {
+  return (
+    <button
+      onClick={locked ? undefined : onSelect}
+      disabled={locked}
+      className={`group flex w-full items-start gap-2.5 rounded-md px-2 py-2 text-left transition-colors duration-150 ${locked ? "cursor-not-allowed" : "hover:bg-[color-mix(in_oklab,var(--foreground)_4%,transparent)]"}`}
+      style={{
+        opacity: locked ? 0.4 : 1,
+        background: selected ? "color-mix(in oklab, var(--operational) 8%, transparent)" : undefined,
+        boxShadow: selected ? "inset 0 0 0 1px color-mix(in oklab, var(--operational) 26%, transparent)" : undefined,
+      }}
+    >
+      <span className="mt-[3px] grid h-[14px] w-[14px] shrink-0 place-items-center rounded-full border transition-colors duration-150" style={{ borderColor: selected ? "var(--operational)" : "color-mix(in oklab, var(--foreground) 22%, transparent)" }}>
+        {selected ? <span className="h-[6px] w-[6px] rounded-full" style={{ background: "var(--operational)" }} /> : null}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          {icon ? (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="shrink-0" style={{ color: selected ? "var(--operational)" : "var(--muted-foreground)" }}>
+              <path d={icon} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : null}
+          <span className="text-ui truncate" style={{ fontSize: dense ? 13 : selected ? 15 : 14, fontWeight: selected ? 500 : 400, color: selected ? "var(--foreground)" : "var(--muted-foreground)" }}>{label}</span>
+          {locked ? (
+            <span className="ml-auto flex shrink-0 items-center gap-1 text-muted-foreground">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M7 11V8a5 5 0 0110 0v3M5 11h14v10H5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <span className="text-code" style={{ fontSize: 10 }}>Coming Soon</span>
+            </span>
+          ) : null}
+        </span>
+        {consequence ? (
+          <span
+            className={`text-code mt-0.5 block leading-snug transition-opacity duration-150 ${selected ? "opacity-60" : "opacity-0 group-hover:opacity-50"}`}
+            style={{ fontSize: 11, color: "var(--muted-foreground)" }}
+          >
+            {consequence}
+          </span>
+        ) : null}
+      </span>
+    </button>
   );
 }
 
