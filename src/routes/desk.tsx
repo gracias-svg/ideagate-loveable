@@ -2,9 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   AGENTS, ARTIFACTS, CATEGORIES, CATEGORY_COLOR, CONFIDENCE_SCORE, MODELS, PRESETS,
-  PROJECT_NAME, WORKSPACE_PATH, categoryOf, bodyOf,
+  PROJECT_NAME, WORKSPACE_PATH, categoryOf, bodyOf, ATTENTION, type AttentionIssue, downstreamCount,
   type Artifact, type Category,
 } from "@/lib/desk-data";
+import { WorkspaceExplorer } from "@/components/workspace-explorer";
+import { ArtifactInspector } from "@/components/artifact-inspector";
 
 export const Route = createFileRoute("/desk")({
   head: () => ({
@@ -645,6 +647,10 @@ function PopulatedDesk() {
   const [agent, setAgent] = useState<string>("all");
   const [sort, setSort] = useState<Sort>("stage");
   const [density, setDensity] = useState<"cozy" | "dense">("cozy");
+  const [inspectId, setInspectId] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<string[]>([]);
+  const reader = useReader();
+  const issues = ATTENTION.filter((i) => !resolved.includes(i.id)).slice(0, 3);
 
   const filtered = useMemo(() => {
     let out = ARTIFACTS.slice();
@@ -659,18 +665,20 @@ function PopulatedDesk() {
 
   return (
     <div className="flex flex-1">
-      <WorkspaceSidebar />
+      <WorkspaceExplorer activeId={inspectId} onSelect={(id) => setInspectId((p) => (p === id ? null : id))} />
       <main className="min-w-0 flex-1 px-8 pb-24 pt-8">
         <div className="mx-auto max-w-[1180px]">
           <div className="pb-6">
             <div className="text-code mb-3 text-muted-foreground" style={{ fontSize: 10 }}>{WORKSPACE_PATH}</div>
             <h1 className="text-foreground" style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(2rem, 3.6vw, 3rem)", lineHeight: 1.05, letterSpacing: "-0.02em" }}>The library</h1>
-            <p className="mt-2 max-w-xl text-muted-foreground" style={{ fontSize: 14, lineHeight: 1.55 }}>
-              Every artifact your agents have produced. Open any one to read it. Editing lives in Studio.
-            </p>
           </div>
 
-          <DailyBrief />
+          <DailyBrief issueCount={issues.length} />
+          <AttentionDrawer
+            issues={issues}
+            onReview={(artifactId) => reader.open(artifactId)}
+            onResolve={(issueId) => setResolved((p) => [...p, issueId])}
+          />
 
           <div className="flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2" style={{ borderColor: "var(--border-op)", background: "var(--surface-op)" }}>
             <div className="flex flex-wrap items-center gap-1">
@@ -723,6 +731,7 @@ function PopulatedDesk() {
           </div>
         </div>
       </main>
+      <ArtifactInspector id={inspectId} onClose={() => setInspectId(null)} />
     </div>
   );
 }
@@ -738,79 +747,6 @@ function FutureNote({ title, body }: { title: string; body: string }) {
 
 /* ─── WORKSPACE SIDEBAR → workspace filesystem ───────────────────────── */
 
-function WorkspaceSidebar() {
-  const reader = useReader();
-  const [collapsed, setCollapsed] = useState(false);
-  const [open, setOpen] = useState<Record<string, boolean>>(() => Object.fromEntries(CATEGORIES.map((c) => [c, true])));
-
-  if (collapsed) {
-    return (
-      <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[44px] shrink-0 flex-col items-center border-r py-3 md:flex" style={{ background: "color-mix(in oklab, var(--surface-op-sunken) 55%, transparent)", borderColor: "var(--border-op)" }}>
-        <button onClick={() => setCollapsed(false)} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground" title="Expand workspace">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
-        </button>
-      </aside>
-    );
-  }
-
-  return (
-    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[280px] shrink-0 flex-col border-r md:flex" style={{ background: "color-mix(in oklab, var(--surface-op-sunken) 55%, transparent)", borderColor: "var(--border-op)" }}>
-      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border-op)" }}>
-        <div>
-          <div className="text-label text-muted-foreground" style={{ fontSize: 10 }}>workspace</div>
-          <div className="text-ui text-foreground" style={{ fontSize: 13 }}>{PROJECT_NAME}</div>
-        </div>
-        <button onClick={() => setCollapsed(true)} className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground" title="Collapse">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto px-2 py-3">
-        {CATEGORIES.map((c) => {
-          const items = ARTIFACTS.filter((a) => categoryOf(a.stage) === c);
-          const done = items.filter((a) => a.state === "generated").length;
-          const isOpen = open[c];
-          return (
-            <div key={c} className="mb-1">
-              <button onClick={() => setOpen((p) => ({ ...p, [c]: !p[c] }))} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-muted-foreground transition-colors hover:text-foreground">
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 160ms" }}><path d="M4 3l4 3-4 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
-                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: CATEGORY_COLOR[c] }} />
-                <span className="text-ui" style={{ fontSize: 12 }}>{c}</span>
-                <span className="text-code ml-auto tabular-nums" style={{ fontSize: 10 }}>{done}/{items.length}</span>
-              </button>
-              <div className="grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
-                <div className="min-h-0">
-                  <ul className="pl-5 pt-0.5">
-                    {items.map((a) => (
-                      <li key={a.id}>
-                        <button
-                          onClick={() => a.state === "generated" && reader.open(a.id)}
-                          disabled={a.state !== "generated"}
-                          className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-white/[0.03] disabled:cursor-default"
-                          style={{ color: a.state === "generated" ? "var(--muted-foreground)" : "color-mix(in oklab, var(--muted-foreground) 55%, transparent)" }}
-                        >
-                          <StatusDot state={a.state} />
-                          <span className="truncate text-ui" style={{ fontSize: 11.5 }}>{a.name}</span>
-                          <span className="text-code ml-auto tabular-nums opacity-50" style={{ fontSize: 9 }}>{a.stage}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="border-t px-3 py-2 text-muted-foreground" style={{ borderColor: "var(--border-op)" }}>
-        <div className="text-code flex items-center justify-between" style={{ fontSize: 10 }}>
-          <span>{WORKSPACE_PATH}</span>
-          <span className="pulse-dot inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--operational)" }} />
-        </div>
-      </div>
-    </aside>
-  );
-}
-
 function StatusDot({ state }: { state: Artifact["state"] }) {
   if (state === "generated") return <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--operational)" }} />;
   if (state === "stale") return <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--warning)" }} />;
@@ -825,52 +761,76 @@ function StatusDot({ state }: { state: Artifact["state"] }) {
  *  What changed since the user last looked. Reads, never asks.
  * ──────────────────────────────────────────────────────────────────── */
 
-function DailyBrief() {
-  const generated = ARTIFACTS.filter((a) => a.state === "generated");
-  const running = ARTIFACTS.filter((a) => a.state === "generating");
-  const queued = ARTIFACTS.filter((a) => a.state === "queued");
-  const attention = ARTIFACTS.filter((a) => a.status === "warnings" || a.status === "changes");
-  const latest = generated.slice().sort((a, b) => (a.updatedMin ?? 1e6) - (b.updatedMin ?? 1e6))[0];
-  const pct = Math.round((generated.length / ARTIFACTS.length) * 100);
+function DailyBrief({ issueCount }: { issueCount: number }) {
+  const generated = ARTIFACTS.filter((a) => a.state === "generated").length;
+  const worst = ATTENTION[0] ? ARTIFACTS.find((a) => a.id === ATTENTION[0].artifactId) : undefined;
+  return (
+    <p
+      className="mb-7 max-w-[62ch] text-foreground/85"
+      style={{ fontSize: 17.5, lineHeight: 1.6, animation: "ig-fade-up 420ms var(--ease-out) both" }}
+    >
+      {issueCount === 0
+        ? `Your product thinking is holding together. ${generated} artifacts written, nothing waiting on you.`
+        : `Your product thinking is mostly solid. ${issueCount === 1 ? "One artifact" : `${issueCount} artifacts`}${worst ? ` — starting with the ${worst.name}` : ""} — need${issueCount === 1 ? "s" : ""} review before continuing.`}
+    </p>
+  );
+}
+
+/* ─── ATTENTION DRAWER → attention_queue (derived) ────────────────────
+ *  Exists only while something needs a decision. Springs down, springs up.
+ * ──────────────────────────────────────────────────────────────────── */
+
+function AttentionDrawer({ issues, onReview, onResolve }: { issues: AttentionIssue[]; onReview: (artifactId: string) => void; onResolve: (issueId: string) => void }) {
+  const [shown, setShown] = useState(false);
+  const has = issues.length > 0;
+  useEffect(() => {
+    if (has) { const r = requestAnimationFrame(() => setShown(true)); return () => cancelAnimationFrame(r); }
+    setShown(false);
+  }, [has]);
 
   return (
-    <section
-      className="mb-6 overflow-hidden rounded-2xl border"
-      style={{ borderColor: "var(--border-op)", background: "var(--surface-op-elevated)", animation: "ig-fade-up 420ms var(--ease-out) both" }}
-      aria-label="Daily brief"
+    <div
+      className="grid overflow-hidden"
+      style={{ gridTemplateRows: has && shown ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.22, 1.3, 0.36, 1)" }}
+      aria-live="polite"
     >
-      <div className="flex flex-wrap items-start gap-x-10 gap-y-6 px-6 py-5">
-        <div className="min-w-[260px] flex-1">
-          <div className="text-label text-muted-foreground" style={{ fontSize: 10 }}>daily brief</div>
-          <p className="mt-2 text-foreground" style={{ fontFamily: "var(--font-serif)", fontSize: 20, lineHeight: 1.35, letterSpacing: "-0.01em" }}>
-            {generated.length} of {ARTIFACTS.length} artifacts written.{" "}
-            {running.length ? `${running.map((r) => r.name).join(" and ")} ${running.length > 1 ? "are" : "is"} being written now.` : "The run is idle."}
-          </p>
-          <p className="mt-2 text-muted-foreground" style={{ fontSize: 13.5, lineHeight: 1.6 }}>
-            {latest ? `Last change: ${latest.name} · ${latest.updatedMin}m ago.` : "No changes yet."}{" "}
-            {attention.length ? `${attention.length} artifacts need a decision before the run can pass validation.` : "Nothing is waiting on you."}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-8">
-          {[
-            { k: "progress", v: `${pct}%`, tone: "var(--operational)" },
-            { k: "running", v: String(running.length), tone: "var(--info)" },
-            { k: "queued", v: String(queued.length), tone: "var(--muted-foreground)" },
-            { k: "needs review", v: String(attention.length), tone: attention.length ? "var(--warning)" : "var(--muted-foreground)" },
-          ].map((m) => (
-            <div key={m.k}>
-              <div className="text-code tabular-nums" style={{ fontSize: 22, color: m.tone }}>{m.v}</div>
-              <div className="text-code mt-1 text-muted-foreground" style={{ fontSize: 10, opacity: 0.65 }}>{m.k}</div>
-            </div>
-          ))}
-        </div>
+      <div className="min-h-0">
+        <section
+          className="mb-7 rounded-xl border-l-2 py-4 pl-5 pr-4"
+          style={{
+            borderLeftColor: "var(--warning)",
+            background: "color-mix(in oklab, var(--warning) 5%, transparent)",
+            transform: has && shown ? "translateY(0)" : "translateY(-8px)",
+            opacity: has && shown ? 1 : 0,
+            transition: "transform 300ms cubic-bezier(0.22, 1.3, 0.36, 1), opacity 200ms ease-out",
+          }}
+          aria-label="Needs attention"
+        >
+          <div className="text-label text-muted-foreground" style={{ fontSize: 9.5 }}>needs attention</div>
+          <ul className="mt-3 space-y-3">
+            {issues.map((i) => {
+              const a = ARTIFACTS.find((x) => x.id === i.artifactId);
+              if (!a) return null;
+              return (
+                <li key={i.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="text-foreground" style={{ fontSize: 14.5 }}>{a.name}</span>
+                  <span className="text-code" style={{ fontSize: 10, color: "var(--warning)" }}>{i.kind}</span>
+                  <span className="text-muted-foreground" style={{ fontSize: 13 }}>
+                    affects {downstreamCount(a.id)} downstream artifact{downstreamCount(a.id) === 1 ? "" : "s"}
+                  </span>
+                  <div className="ml-auto flex items-center gap-4">
+                    <button onClick={() => onResolve(i.id)} className="text-code text-muted-foreground transition-colors hover:text-foreground" style={{ fontSize: 10 }}>dismiss</button>
+                    <button onClick={() => onReview(a.id)} className="text-ui inline-flex items-center gap-1 transition-colors" style={{ fontSize: 13, color: "var(--operational)" }}>
+                      Review →
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       </div>
-
-      <div className="h-[3px] w-full" style={{ background: "color-mix(in oklab, var(--foreground) 7%, transparent)" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: "var(--operational)", transition: "width 600ms var(--ease-out)" }} />
-      </div>
-    </section>
+    </div>
   );
 }
 

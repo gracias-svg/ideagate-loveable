@@ -342,7 +342,9 @@ function LogoGlyph() {
 /* ─────────────────────────── Topbar ─────────────────────────── */
 
 function MissionTopbar({ now, onOpenPalette }: { now: Date; onOpenPalette: () => void }) {
-  const time = now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const time = hydrated ? now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) : "--:--:--";
   return (
     <header
       className="sticky top-0 z-30 flex h-14 items-center justify-between border-b px-8"

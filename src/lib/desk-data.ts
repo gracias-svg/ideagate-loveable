@@ -299,3 +299,54 @@ export const PRESETS: { label: string; idea: string }[] = [
 ];
 
 export const MODELS = ["gpt-5.2", "claude-4.7-sonnet", "gemini-3-pro"];
+
+/* ─── WORKSPACE PHASES → workspace/<project>/documents/<phase>/ ────────
+ *  Five folders on disk. Every artifact lives in exactly one of them.
+ * ──────────────────────────────────────────────────────────────────── */
+
+export const PHASES = ["Discover", "Decide", "Specify", "Architect", "Ship"] as const;
+export type Phase = (typeof PHASES)[number];
+
+export function phaseOf(stage: number): Phase {
+  if (stage <= 2) return "Discover";
+  if (stage <= 6) return "Decide";
+  if (stage <= 9) return "Specify";
+  if (stage <= 12) return "Architect";
+  return "Ship";
+}
+
+export type Health = "healthy" | "attention" | "pending";
+
+/** file health dot → validation status + artifact state */
+export function healthOf(a: Artifact): Health {
+  if (a.state !== "generated") return "pending";
+  if (a.status === "warnings" || a.status === "changes" || a.status === "pending") return "attention";
+  return "healthy";
+}
+
+export const HEALTH_COLOR: Record<Health, string> = {
+  healthy: "var(--operational)",
+  attention: "var(--warning)",
+  pending: "color-mix(in oklab, var(--muted-foreground) 60%, transparent)",
+};
+
+/** → journey_events (recent activity, newest first) */
+export const HISTORY: { id: string; label: string; detail: string; ago: string }[] = [
+  { id: "h1", label: "PRD revised", detail: "S-01 · v4 · pricing section flagged", ago: "31m" },
+  { id: "h2", label: "UX design returned", detail: "U-01 · changes requested", ago: "24m" },
+  { id: "h3", label: "Usability planning started", detail: "U-01 · stage 9 running", ago: "12m" },
+  { id: "h4", label: "Architecture started", detail: "A-01 · stage 10 running", ago: "8m" },
+];
+
+/** → attention_queue (derived: stale / low confidence / conflict) */
+export type AttentionIssue = { id: string; artifactId: string; kind: "Stale" | "Needs review" | "Conflict"; note: string };
+
+export const ATTENTION: AttentionIssue[] = [
+  { id: "at1", artifactId: "prd-007", kind: "Needs review", note: "Pricing contradicts the prioritisation decision." },
+  { id: "at2", artifactId: "ux-008", kind: "Stale", note: "Two competing edit-quantity patterns unresolved." },
+  { id: "at3", artifactId: "sol-003", kind: "Needs review", note: "Forecast accuracy assumption untested." },
+];
+
+export function downstreamCount(id: string): number {
+  return ARTIFACTS.filter((a) => (a.downstream ?? []).includes(id)).length + (ARTIFACTS.find((a) => a.id === id)?.downstream?.length ?? 0);
+}
