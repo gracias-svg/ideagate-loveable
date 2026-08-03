@@ -645,6 +645,10 @@ function PopulatedDesk() {
   const [agent, setAgent] = useState<string>("all");
   const [sort, setSort] = useState<Sort>("stage");
   const [density, setDensity] = useState<"cozy" | "dense">("cozy");
+  const [inspectId, setInspectId] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<string[]>([]);
+  const reader = useReader();
+  const issues = ATTENTION.filter((i) => !resolved.includes(i.id)).slice(0, 3);
 
   const filtered = useMemo(() => {
     let out = ARTIFACTS.slice();
@@ -659,18 +663,20 @@ function PopulatedDesk() {
 
   return (
     <div className="flex flex-1">
-      <WorkspaceSidebar />
+      <WorkspaceExplorer activeId={inspectId} onSelect={(id) => setInspectId((p) => (p === id ? null : id))} />
       <main className="min-w-0 flex-1 px-8 pb-24 pt-8">
         <div className="mx-auto max-w-[1180px]">
           <div className="pb-6">
             <div className="text-code mb-3 text-muted-foreground" style={{ fontSize: 10 }}>{WORKSPACE_PATH}</div>
             <h1 className="text-foreground" style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(2rem, 3.6vw, 3rem)", lineHeight: 1.05, letterSpacing: "-0.02em" }}>The library</h1>
-            <p className="mt-2 max-w-xl text-muted-foreground" style={{ fontSize: 14, lineHeight: 1.55 }}>
-              Every artifact your agents have produced. Open any one to read it. Editing lives in Studio.
-            </p>
           </div>
 
-          <DailyBrief />
+          <DailyBrief issueCount={issues.length} />
+          <AttentionDrawer
+            issues={issues}
+            onReview={(artifactId) => reader.open(artifactId)}
+            onResolve={(issueId) => setResolved((p) => [...p, issueId])}
+          />
 
           <div className="flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2" style={{ borderColor: "var(--border-op)", background: "var(--surface-op)" }}>
             <div className="flex flex-wrap items-center gap-1">
@@ -723,6 +729,7 @@ function PopulatedDesk() {
           </div>
         </div>
       </main>
+      <ArtifactInspector id={inspectId} onClose={() => setInspectId(null)} />
     </div>
   );
 }
