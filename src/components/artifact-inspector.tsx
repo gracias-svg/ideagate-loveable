@@ -27,7 +27,7 @@ export function ArtifactInspector({ id, onClose }: { id: string | null; onClose:
 
   const health = healthOf(mounted);
   const phase = phaseOf(mounted.stage);
-  const sections = bodyOf(mounted);
+  const sections = bodyOf(mounted).filter((s) => s.heading.toLowerCase() !== "executive summary");
   const downstream = (mounted.downstream ?? []).length;
   const confidenceLine =
     health === "attention" ? "Needs review" : mounted.confidence === "high" ? "High confidence" : mounted.confidence === "medium" ? "Moderate confidence" : "Low confidence";
