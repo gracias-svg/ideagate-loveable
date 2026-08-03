@@ -185,7 +185,7 @@ const Row = ({
   children, depth, onClick, active, ...rest
 }: {
   children: React.ReactNode; depth: number; onClick?: () => void; active?: boolean;
-} & React.HTMLAttributes<HTMLDivElement> & { ref?: (n: HTMLElement | null) => void }) => (
+} & Omit<React.HTMLAttributes<HTMLDivElement>, "onClick"> & { ref?: (n: HTMLElement | null) => void }) => (
   <div
     {...rest}
     role={onClick ? "button" : undefined}
@@ -200,7 +200,7 @@ const Row = ({
   </div>
 );
 
-function LockedRow({ label, ...rest }: { label: string } & React.HTMLAttributes<HTMLDivElement>) {
+function LockedRow({ label, ...rest }: { label: string } & Omit<React.HTMLAttributes<HTMLDivElement>, "onClick">) {
   return (
     <Row {...rest} depth={0}>
       <Glyph kind="lock" />
