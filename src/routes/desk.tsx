@@ -2,9 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   AGENTS, ARTIFACTS, CATEGORIES, CATEGORY_COLOR, CONFIDENCE_SCORE, MODELS, PRESETS,
-  PROJECT_NAME, WORKSPACE_PATH, categoryOf, bodyOf,
+  PROJECT_NAME, WORKSPACE_PATH, categoryOf, bodyOf, ATTENTION, type AttentionIssue, downstreamCount,
   type Artifact, type Category,
 } from "@/lib/desk-data";
+import { WorkspaceExplorer } from "@/components/workspace-explorer";
+import { ArtifactInspector } from "@/components/artifact-inspector";
 
 export const Route = createFileRoute("/desk")({
   head: () => ({
