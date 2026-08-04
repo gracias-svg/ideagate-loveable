@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { GenerationExperience, type RunState } from "@/components/generation-experience";
 import {
   AGENTS, ARTIFACTS, CATEGORY_COLOR, CONFIDENCE_SCORE, MODELS,
   PROJECT_NAME, WORKSPACE_PATH, bodyOf, categoryOf,
@@ -41,15 +42,21 @@ function StudioPage() {
   const artifact = useMemo(() => EDITABLE.find((a) => a.id === activeId) ?? EDITABLE[0], [activeId]);
   const [dirty, setDirty] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  /* → journey_runs.status — Studio swaps the editor for the run surface */
+  const [run, setRun] = useState<RunState | "idle">("running");
 
   return (
     <div className="dark relative flex min-h-screen" style={{ background: "var(--surface-op-sunken)", color: "var(--foreground)" }}>
       <StudioNav />
       <div className="flex min-w-0 flex-1 flex-col">
-        <StudioTopbar artifact={artifact} dirty={dirty} />
+        <StudioTopbar artifact={artifact} dirty={dirty} run={run} onRun={setRun} />
         <div className="flex min-w-0 flex-1">
           <DocumentPanel artifact={artifact} onSelect={setActiveId} activeSection={activeSection} onJump={setActiveSection} />
-          <DocumentPaper artifact={artifact} dirty={dirty} onDirty={() => setDirty(true)} />
+          {run === "idle" ? (
+            <DocumentPaper artifact={artifact} dirty={dirty} onDirty={() => setDirty(true)} />
+          ) : (
+            <GenerationExperience current={8} state={run} onOpenLibrary={() => setRun("idle")} />
+          )}
           <IntelligencePanel onRun={() => setDirty(true)} />
         </div>
       </div>
@@ -104,7 +111,7 @@ function StudioNav() {
   );
 }
 
-function StudioTopbar({ artifact, dirty }: { artifact: Artifact; dirty: boolean }) {
+function StudioTopbar({ artifact, dirty, run, onRun }: { artifact: Artifact; dirty: boolean; run: RunState | "idle"; onRun: (r: RunState | "idle") => void }) {
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b px-8" style={{ background: "var(--surface-op)", borderColor: "var(--border-op)" }}>
       <div className="flex items-center gap-3 text-muted-foreground">
@@ -113,8 +120,21 @@ function StudioTopbar({ artifact, dirty }: { artifact: Artifact; dirty: boolean 
         <span className="text-ui text-foreground" style={{ fontSize: 13 }}>{PROJECT_NAME}</span>
         <span className="text-code" style={{ fontSize: 11 }}>/</span>
         <span className="text-ui" style={{ fontSize: 13 }}>Studio</span>
+        {artifact ? null : null}
       </div>
       <div className="flex items-center gap-3">
+        <div className="flex rounded-md border p-0.5" style={{ borderColor: "var(--border-op)" }}>
+          {(["running", "paused", "complete", "idle"] as const).map((r) => (
+            <button
+              key={r}
+              onClick={() => onRun(r)}
+              className="rounded-[5px] px-2 py-1 transition-colors duration-150"
+              style={{ fontSize: 11, color: run === r ? "var(--foreground)" : "var(--muted-foreground)", background: run === r ? "color-mix(in oklab, var(--foreground) 8%, transparent)" : "transparent" }}
+            >
+              {r === "idle" ? "document" : r}
+            </button>
+          ))}
+        </div>
         <span className="text-code" style={{ fontSize: 11, color: dirty ? "var(--warning)" : "var(--muted-foreground)", opacity: dirty ? 1 : 0.6 }}>
           {dirty ? "Unsaved changes" : "Saved"}
         </span>
