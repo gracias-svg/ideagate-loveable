@@ -701,7 +701,10 @@ function PopulatedDesk() {
             </div>
           </div>
 
-          <div className={`mt-8 grid gap-6 ${density === "cozy" ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 lg:grid-cols-3"}`}>
+          <div
+            className={`mt-8 grid gap-0 overflow-hidden rounded-xl ${density === "cozy" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}
+            style={{ borderTop: "1px dashed color-mix(in oklab, var(--foreground) 10%, transparent)", borderLeft: "1px dashed color-mix(in oklab, var(--foreground) 10%, transparent)" }}
+          >
             {filtered.map((a, i) => (<ArtifactCard key={a.id} artifact={a} index={i} density={density} />))}
             {filtered.length === 0 ? (
               <div className="col-span-full rounded-2xl border py-16 text-center" style={{ borderColor: "var(--border-op)", borderStyle: "dashed" }}>
