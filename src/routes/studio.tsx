@@ -50,6 +50,7 @@ function StudioPage() {
       <StudioNav />
       <div className="flex min-w-0 flex-1 flex-col">
         <StudioTopbar artifact={artifact} dirty={dirty} run={run} onRun={setRun} />
+        <GenerationProgressLine active={run === "running"} />
         <div className="flex min-w-0 flex-1">
           <DocumentPanel artifact={artifact} onSelect={setActiveId} activeSection={activeSection} onJump={setActiveSection} />
           {run === "idle" ? (
@@ -65,6 +66,39 @@ function StudioPage() {
 }
 
 /* ─── LEFT NAV RAIL (shared shell) ───────────────────────────────────── */
+
+/** → journey_runs.status — indeterminate "working" line, motion not words */
+function GenerationProgressLine({ active }: { active: boolean }) {
+  const [visible, setVisible] = useState(active);
+  useEffect(() => {
+    if (active) { setVisible(true); return; }
+    const t = setTimeout(() => setVisible(false), 1000);
+    return () => clearTimeout(t);
+  }, [active]);
+  if (!visible) return null;
+  return (
+    <div
+      aria-hidden
+      className="sticky top-14 z-30 w-full overflow-hidden"
+      style={{
+        height: 2,
+        background: "color-mix(in oklab, var(--operational) 12%, transparent)",
+        opacity: active ? 1 : 0,
+        transition: "opacity 900ms var(--ease-out)",
+      }}
+    >
+      <div
+        className="progress-glow h-full"
+        style={{
+          width: "32%",
+          background: "linear-gradient(90deg, transparent, color-mix(in oklab, var(--operational) 55%, transparent) 35%, color-mix(in oklab, var(--operational) 92%, white 25%) 55%, transparent)",
+          filter: "blur(0.2px)",
+          boxShadow: "0 0 12px color-mix(in oklab, var(--operational) 60%, transparent)",
+        }}
+      />
+    </div>
+  );
+}
 
 const NAV = [
   { id: "desk", label: "Desk", kbd: "D", href: "/desk" },
