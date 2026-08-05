@@ -7,6 +7,7 @@ import {
 } from "@/lib/desk-data";
 import { WorkspaceExplorer } from "@/components/workspace-explorer";
 import { ArtifactInspector } from "@/components/artifact-inspector";
+import { Boxes, Clock, FileText, Lightbulb, ListChecks, PenLine, Search, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/desk")({
   head: () => ({
