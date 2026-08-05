@@ -7,6 +7,7 @@ import {
 } from "@/lib/desk-data";
 import { WorkspaceExplorer } from "@/components/workspace-explorer";
 import { ArtifactInspector } from "@/components/artifact-inspector";
+import { Boxes, Clock, FileText, Lightbulb, ListChecks, PenLine, Search, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/desk")({
   head: () => ({
@@ -701,7 +702,10 @@ function PopulatedDesk() {
             </div>
           </div>
 
-          <div className={`mt-8 grid gap-6 ${density === "cozy" ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 lg:grid-cols-3"}`}>
+          <div
+            className={`mt-8 grid gap-0 overflow-hidden rounded-xl ${density === "cozy" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"}`}
+            style={{ borderTop: "1px dashed color-mix(in oklab, var(--foreground) 10%, transparent)", borderLeft: "1px dashed color-mix(in oklab, var(--foreground) 10%, transparent)" }}
+          >
             {filtered.map((a, i) => (<ArtifactCard key={a.id} artifact={a} index={i} density={density} />))}
             {filtered.length === 0 ? (
               <div className="col-span-full rounded-2xl border py-16 text-center" style={{ borderColor: "var(--border-op)", borderStyle: "dashed" }}>
@@ -834,6 +838,19 @@ function AttentionDrawer({ issues, onReview, onResolve }: { issues: AttentionIss
   );
 }
 
+/** artifact type → lucide icon (visual taxonomy only) */
+function iconFor(artifact: Artifact) {
+  const n = `${artifact.docType ?? ""} ${artifact.name}`.toLowerCase();
+  if (n.includes("research") || n.includes("discovery")) return Search;
+  if (n.includes("prd") || n.includes("requirement")) return FileText;
+  if (n.includes("ux") || n.includes("design") || n.includes("flow")) return PenLine;
+  if (n.includes("architect") || n.includes("system")) return Boxes;
+  if (n.includes("qa") || n.includes("valid") || n.includes("test")) return ShieldCheck;
+  if (n.includes("backlog") || n.includes("release") || n.includes("priorit")) return ListChecks;
+  if (n.includes("problem") || n.includes("hypothes")) return Lightbulb;
+  return FileText;
+}
+
 function ArtifactCard({ artifact, index, density }: { artifact: Artifact; index: number; density: "cozy" | "dense" }) {
   const reader = useReader();
   const cardRef = useRef<HTMLDivElement>(null);
@@ -842,70 +859,59 @@ function ArtifactCard({ artifact, index, density }: { artifact: Artifact; index:
     reader.open(artifact.id, r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null);
   };
   const [hover, setHover] = useState(false);
-  const cat = categoryOf(artifact.stage);
   const pending = artifact.state !== "generated";
   const dense = density === "dense";
+  const dash = (o: number) => `1px dashed color-mix(in oklab, var(--foreground) ${o}%, transparent)`;
+  const stagger = `${Math.min(index * 40, 480)}ms`;
 
   if (pending) {
     return (
-      <div className="rounded-2xl border p-5" style={{ borderColor: "var(--border-op)", borderStyle: "dashed", animation: `ig-fade-up 400ms var(--ease-out) ${Math.min(index * 40, 400)}ms both` }}>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-code rounded-full border px-2 py-0.5" style={{ fontSize: 10, borderColor: "var(--border-op)", color: "var(--muted-foreground)" }}>{cat}</span>
-          <span className="text-code text-muted-foreground tabular-nums opacity-60" style={{ fontSize: 10 }}>{artifact.id}</span>
+      <div
+        className="card-blur-in flex min-h-[168px] flex-col px-5 py-5"
+        style={{ borderRight: dash(4), borderBottom: dash(4), animationDelay: stagger }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <Clock size={15} style={{ color: "var(--muted-foreground)", opacity: 0.5 }} />
+          <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full border" style={{ borderColor: "var(--border-strong)" }} />
         </div>
-        <h3 className="mt-3" style={{ fontFamily: "var(--font-serif)", fontSize: dense ? 17 : 20, lineHeight: 1.2, color: "color-mix(in oklab, var(--muted-foreground) 80%, transparent)" }}>{artifact.name}</h3>
-        <div className="mt-4 flex items-center gap-3 text-muted-foreground">
-          <StatusDot state={artifact.state} />
-          <span className="text-code" style={{ fontSize: 10 }}>{artifact.state === "generating" ? "generating…" : "queued"}</span>
-          <span className="text-code ml-auto opacity-60" style={{ fontSize: 10 }}>{artifact.agent} · stage {artifact.stage}</span>
-        </div>
+        <h3 className="mt-3" style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3, color: "color-mix(in oklab, var(--muted-foreground) 70%, transparent)" }}>{artifact.name}</h3>
+        <div className="text-code mt-auto pt-4" style={{ fontSize: 10, color: "color-mix(in oklab, var(--muted-foreground) 60%, transparent)" }}>Not yet generated</div>
       </div>
     );
   }
 
   const statusTone: Record<string, string> = { passing: "var(--operational)", approved: "var(--operational)", warnings: "var(--warning)", changes: "var(--warning)", pending: "var(--info)" };
   const tone = statusTone[artifact.status ?? "pending"];
-  const conf = artifact.confidence ? CONFIDENCE_SCORE[artifact.confidence] : 0;
+  const Icon = iconFor(artifact);
 
   return (
     <div
       ref={cardRef}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      className="relative flex flex-col overflow-hidden rounded-2xl border p-5 transition-all duration-300 ease-out"
-      style={{ borderColor: hover ? "color-mix(in oklab, var(--operational) 35%, var(--border-op))" : "var(--border-op)", background: "var(--surface-op-elevated)", transform: hover ? "translateY(-2px)" : "translateY(0)", boxShadow: hover ? "0 26px 54px -32px rgba(0,0,0,0.6)" : "0 12px 32px -24px rgba(0,0,0,0.45)", animation: `ig-fade-up 480ms var(--ease-out) ${Math.min(index * 50, 450)}ms both` }}
+      onClick={openHere}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter") openHere(); }}
+      className="card-blur-in relative flex min-h-[168px] cursor-pointer flex-col px-5 py-5 transition-colors duration-300 ease-out"
+      style={{
+        borderRight: hover ? "1px dashed color-mix(in oklab, var(--operational) 42%, transparent)" : dash(10),
+        borderBottom: hover ? "1px dashed color-mix(in oklab, var(--operational) 42%, transparent)" : dash(10),
+        background: hover ? "color-mix(in oklab, var(--operational) 4%, transparent)" : "transparent",
+        animationDelay: stagger,
+      }}
     >
-      <span aria-hidden className="absolute inset-y-3 left-0 w-[2px] rounded-full" style={{ background: CATEGORY_COLOR[cat], opacity: hover ? 1 : 0.5 }} />
-      <div className="flex items-center justify-between gap-3 pl-2">
-        <div className="flex items-center gap-2">
-          <span className="text-code inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5" style={{ fontSize: 10, borderColor: "var(--border-op)", background: `color-mix(in oklab, ${CATEGORY_COLOR[cat]} 10%, transparent)`, color: CATEGORY_COLOR[cat] }}>
-            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: CATEGORY_COLOR[cat] }} />{cat}
-          </span>
-          <span className="text-code rounded-md px-1.5 py-0.5" style={{ fontSize: 10, background: "color-mix(in oklab, var(--foreground) 5%, transparent)", color: "var(--muted-foreground)" }}>{artifact.docType}</span>
-        </div>
-        <span className="text-code text-muted-foreground tabular-nums" style={{ fontSize: 10 }}>{artifact.id}</span>
+      <div className="flex items-start justify-between gap-3">
+        <Icon size={15} style={{ color: hover ? "var(--operational)" : "var(--muted-foreground)", transition: "color 200ms var(--ease-out)" }} />
+        <span className="mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tone }} />
       </div>
 
-      <button onClick={openHere} className="mt-3 pl-2 text-left text-foreground" style={{ fontFamily: "var(--font-serif)", fontSize: dense ? 18 : 22, lineHeight: 1.2, letterSpacing: "-0.01em" }}>{artifact.title}</button>
-      {!dense ? (<p className="mt-3 pl-2 text-muted-foreground" style={{ fontSize: 13.5, lineHeight: 1.6 }}>{artifact.summary}</p>) : null}
+      <h3 className="mt-3 text-foreground" style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.3, letterSpacing: "-0.005em" }}>{artifact.name}</h3>
+      {!dense ? (
+        <p className="mt-2 text-muted-foreground" style={{ fontSize: 12, lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{artifact.summary}</p>
+      ) : null}
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 pl-2 text-muted-foreground">
-        <span className="text-code inline-flex items-center gap-1.5" style={{ fontSize: 10 }}>
-          <span className="text-code inline-block rounded px-1 py-px" style={{ fontSize: 9, background: "color-mix(in oklab, var(--operational) 14%, transparent)", color: "var(--operational)" }}>{artifact.agent}</span>
-        </span>
-        <span className="text-code" style={{ fontSize: 10 }}>{(artifact.updatedMin ?? 0) < 60 ? `${artifact.updatedMin}m ago` : `${Math.floor((artifact.updatedMin ?? 0) / 60)}h ago`}</span>
-        <span className="text-code" style={{ fontSize: 10 }}>{artifact.readMin} min read</span>
-        <span className="text-code inline-flex items-center gap-1" style={{ fontSize: 10, color: tone }}><span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: tone }} />{artifact.status}</span>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between gap-4 border-t pl-2 pt-3" style={{ borderColor: "var(--border-op)" }}>
-        <div className="flex flex-1 flex-wrap items-center gap-4">
-          <MiniMeter label="confidence" value={conf} tone="op" suffix={artifact.confidence} />
-          <span className="text-code inline-flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: 9 }}>ai<span style={{ color: "var(--info)" }}>v{artifact.version}</span></span>
-        </div>
-        <button onClick={openHere} className="text-ui inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground" style={{ fontSize: 12 }}>
-          Open
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ transform: hover ? "translateX(2px)" : "translateX(0)", transition: "transform 200ms var(--ease-out)" }}><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
+      <div className="text-code mt-auto pt-4 text-muted-foreground" style={{ fontSize: 10 }}>
+        v{artifact.version} · {artifact.confidence === "high" ? "High" : artifact.confidence === "medium" ? "Moderate" : "Low"} confidence
       </div>
     </div>
   );

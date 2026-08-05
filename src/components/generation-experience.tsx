@@ -19,14 +19,20 @@ export const LIFECYCLE_STAGES = [
 
 const AGO = ["3m ago", "3m ago", "2m ago", "2m ago", "2m ago", "1m ago", "1m ago", "45s ago", "30s ago", "22s ago", "18s ago", "12s ago", "9s ago", "5s ago", "2s ago"];
 
+/* → agent_runs.tool_calls — a continuous stream, never a growing list */
 const TOOL_FEED = [
-  { icon: "📄", text: "Reading PRD artifact" },
-  { icon: "🔍", text: "Analysing user journey requirements" },
-  { icon: "✏", text: "Generating UX specification" },
-  { icon: "📄", text: "Reading Problem Definition" },
-  { icon: "🔍", text: "Reviewing validation findings" },
-  { icon: "✏", text: "Drafting interaction patterns" },
+  { icon: "📄", text: "Research Agent · Reading discovery artifact" },
+  { icon: "🔍", text: "QA Agent · Validating assumptions" },
+  { icon: "🔍", text: "Research Agent · Synthesising findings" },
+  { icon: "✏", text: "Architecture Agent · Generating system design…" },
+  { icon: "📄", text: "Architecture Agent · Reading PRD constraints" },
+  { icon: "🔍", text: "QA Agent · Cross-checking data model" },
+  { icon: "✏", text: "Architecture Agent · Drafting service boundaries" },
+  { icon: "📄", text: "Research Agent · Reading validation notes" },
 ];
+
+/* opacity ramp: oldest dissolving out → newest fully lit */
+const ROW_OPACITY = [0.1, 0.4, 0.8, 1];
 
 export type RunState = "running" | "complete" | "paused";
 
@@ -142,9 +148,11 @@ function StageRow({ name, state, ago }: { name: string; state: string; ago: stri
   );
 }
 
+/* ── FLOWING THOUGHTS — max 4 rows, newest slides up from the bottom,
+ *    oldest dissolves upward. Never accumulates. → agent_runs.tool_calls
+ * ─────────────────────────────────────────────────────────────────── */
 function ToolGroup({ state }: { state: RunState }) {
-  const [open, setOpen] = useState(false);
-  const [n, setN] = useState(3);
+  const [head, setHead] = useState(3);
   const [secs, setSecs] = useState(42);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -152,23 +160,34 @@ function ToolGroup({ state }: { state: RunState }) {
     if (state !== "running") return;
     timer.current = setInterval(() => {
       setSecs((s) => s + 1);
-      setN((v) => (v % TOOL_FEED.length) + 1);
-    }, 2600);
+      setHead((v) => v + 1);
+    }, 1800);
     return () => { if (timer.current) clearInterval(timer.current); };
   }, [state]);
 
-  const visible = TOOL_FEED.slice(0, n).slice(-4).reverse();
+  useEffect(() => {
+    if (state !== "running") return;
+    const t = setInterval(() => setSecs((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [state]);
+
+  /* window of 4: index 0 = oldest (dissolving), index 3 = newest (shimmering) */
+  const rows = [0, 1, 2, 3].map((k) => {
+    const idx = (((head - 3 + k) % TOOL_FEED.length) + TOOL_FEED.length) % TOOL_FEED.length;
+    return { ...TOOL_FEED[idx], key: `${head - 3 + k}` };
+  });
+
   const mm = Math.floor(secs / 60);
   const ss = String(secs % 60).padStart(2, "0");
 
   const header =
     state === "complete" ? "Lifecycle complete · All 15 artifacts ready"
-    : state === "paused" ? "UX Agent · Generation paused"
-    : "UX Agent · Designing flows";
+    : state === "paused" ? "Architecture Agent · Generation paused"
+    : "Architecture Agent · Building system design";
 
   return (
-    <section className="mt-4 rounded-xl border" style={{ borderColor: "var(--border-op)", background: "var(--surface-op)" }}>
-      <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-2.5 px-5 py-3.5 text-left">
+    <section className="mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "var(--border-op)", background: "var(--surface-op)" }}>
+      <div className="flex items-center gap-2.5 px-5 py-3">
         {state === "complete" ? (
           <svg width="14" height="14" viewBox="0 0 14 14" className="shrink-0">
             <circle cx="7" cy="7" r="7" fill="var(--operational)" />
@@ -177,32 +196,34 @@ function ToolGroup({ state }: { state: RunState }) {
         ) : (
           <span style={{ color: state === "paused" ? "var(--warning)" : "var(--operational)", fontSize: 12 }}>✦</span>
         )}
-        <span className={state === "running" ? "text-shimmer flex-1 truncate" : "flex-1 truncate"} style={{ fontSize: 13.5, color: state === "paused" ? "var(--warning)" : "var(--foreground)" }}>
+        <span className="flex-1 truncate" style={{ fontSize: 13.5, color: state === "paused" ? "var(--warning)" : "var(--foreground)" }}>
           {header}
         </span>
-        {state === "running" ? (
-          <span className="text-code shrink-0" style={{ fontSize: 11, color: "var(--muted-foreground)", opacity: 0.6 }}>{mm}:{ss}</span>
-        ) : state === "complete" ? (
-          <span className="text-code shrink-0" style={{ fontSize: 11, color: "var(--operational)", opacity: 0.8 }}>UX Design complete</span>
-        ) : null}
-        <span className="text-code shrink-0 text-muted-foreground" style={{ fontSize: 11, transform: open ? "rotate(90deg)" : "none", transition: "transform 150ms var(--ease-out)" }}>›</span>
-      </button>
+        <span className="text-code shrink-0 tabular-nums" style={{ fontSize: 11, color: "var(--muted-foreground)", opacity: 0.6 }}>
+          {state === "complete" ? "done" : `${mm}:${ss}`}
+        </span>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", transition: "grid-template-rows 200ms var(--ease-out)" }}>
-        <div className="overflow-hidden">
-          <ul className="space-y-0.5 border-t px-4 py-3" style={{ borderColor: "var(--border-op)" }}>
-            {visible.map((t, i) => (
+      <div className="border-t px-3 py-2" style={{ borderColor: "var(--border-op)", height: 128 }}>
+        <ul className="flex h-full flex-col justify-end">
+          {rows.map((t, i) => {
+            const newest = i === 3 && state === "running";
+            return (
               <li
-                key={t.text}
-                className="tool-enter flex items-center gap-2.5 rounded-md px-2 py-1.5"
-                style={{ opacity: 1 - i * 0.22 }}
+                key={t.key}
+                className="thought-row flex shrink-0 items-center gap-2.5 px-2"
+                style={{ height: 28, opacity: state === "running" ? ROW_OPACITY[i] : Math.min(ROW_OPACITY[i] + 0.2, 0.85) }}
               >
-                <span style={{ fontSize: 11 }}>{t.icon}</span>
-                <span style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>{t.text}</span>
+                <span className="shrink-0" style={{ fontSize: 11 }}>{t.icon}</span>
+                {newest ? (
+                  <span className="text-shimmer-fast truncate" style={{ fontSize: 12.5 }}>{t.text}</span>
+                ) : (
+                  <span className="truncate" style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>{t.text}</span>
+                )}
               </li>
-            ))}
-          </ul>
-        </div>
+            );
+          })}
+        </ul>
       </div>
     </section>
   );
