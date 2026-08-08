@@ -7,6 +7,8 @@ import {
 } from "@/lib/desk-data";
 import { WorkspaceExplorer } from "@/components/workspace-explorer";
 import { ArtifactInspector } from "@/components/artifact-inspector";
+import { OrchestrationStream } from "@/components/orchestration-stream";
+import { LIFECYCLE_SCRIPT, useOrchestrationRun, type RunStatus } from "@/lib/orchestration";
 import { Boxes, Clock, FileText, Lightbulb, ListChecks, PenLine, Search, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/desk")({
@@ -171,7 +173,7 @@ function LogoGlyph() {
 }
 
 function DeskTopbar({ phase, onOpenPalette, onNewIdea }: { phase: Phase; onOpenPalette: () => void; onNewIdea: () => void }) {
-  const status = phase === "empty" ? "READY" : phase === "initializing" ? "INITIALISING" : "RUNNING";
+  const status = phase === "empty" ? "READY" : phase === "initializing" ? "BUILDING" : "LIVE";
   const statusColor = phase === "empty" ? "var(--info)" : "var(--operational)";
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b px-8" style={{ background: "var(--surface-op)", borderColor: "var(--border-op)" }}>
@@ -556,80 +558,38 @@ function GoalRow({ selected, onSelect, label, consequence, icon, locked, dense }
 
 /* ─── STATE 1.5 · INITIALIZING ───────────────────────────────────────── */
 
-const INIT_STEPS = [
-  { t: 400, label: "provisioning workspace", detail: WORKSPACE_PATH },
-  { t: 900, label: "resolving prompt preset", detail: "full-lifecycle" },
-  { t: 1400, label: "waking coordinator", detail: "C-01 online" },
-  { t: 1900, label: "dispatching agents", detail: "R-01 · S-01 · U-01 · A-01 · Q-01" },
-  { t: 2500, label: "seeding artifact scaffolds", detail: "15 placeholders written" },
-  { t: 3100, label: "opening event stream", detail: "journey_events → live" },
-];
-
 function Initializing({ idea, onDone }: { idea: string; onDone: () => void }) {
-  const [tick, setTick] = useState(0);
+  /* → journey_runs.status — the run stays live until the library is ready */
+  const [status, setStatus] = useState<RunStatus>("running");
+  const { events, elapsed } = useOrchestrationRun(LIFECYCLE_SCRIPT, { status, intervalMs: 1400 });
+
   useEffect(() => {
-    const start = performance.now();
-    let raf = 0;
-    const loop = (now: number) => { setTick(now - start); raf = requestAnimationFrame(loop); };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  useEffect(() => {
-    const t = setTimeout(onDone, 4200);
+    const t = setTimeout(() => setStatus("complete"), LIFECYCLE_SCRIPT.length * 1400 + 400);
     return () => clearTimeout(t);
-  }, [onDone]);
+  }, []);
 
   return (
     <main className="relative flex min-h-[calc(100vh-3.5rem)] flex-1 flex-col items-center justify-center px-6 pb-24 pt-12">
       <div className="mb-8 w-full max-w-2xl rounded-2xl border px-5 py-3" style={{ borderColor: "var(--border-op)", background: "var(--surface-op-elevated)" }}>
-        <div className="text-code text-muted-foreground" style={{ fontSize: 10 }}>initialising lifecycle · {PROJECT_NAME.toLowerCase()}</div>
+        <div className="text-code text-muted-foreground" style={{ fontSize: 10 }}>building your product · {PROJECT_NAME.toLowerCase()}</div>
         <div className="mt-1 text-foreground" style={{ fontFamily: "var(--font-serif)", fontSize: 20, lineHeight: 1.3 }}>{idea || "a calm cross-timezone standup for distributed product teams"}</div>
       </div>
-      <AgentGraph tick={tick} />
-      <ol className="mt-8 w-full max-w-xl space-y-1.5">
-        {INIT_STEPS.map((s, i) => {
-          const active = tick >= s.t;
-          const current = active && (i === INIT_STEPS.length - 1 || tick < INIT_STEPS[i + 1].t);
-          return (
-            <li key={s.label} className="flex items-baseline gap-3 rounded-md px-3 py-1.5 transition-colors" style={{ background: current ? "color-mix(in oklab, var(--operational) 8%, transparent)" : "transparent", opacity: active ? 1 : 0.32 }}>
-              <span className="text-code tabular-nums" style={{ fontSize: 10, color: active ? "var(--operational)" : "var(--muted-foreground)", minWidth: 20 }}>{String(i + 1).padStart(2, "0")}</span>
-              <span className="text-ui text-foreground" style={{ fontSize: 13 }}>{s.label}{current ? <span className="cli-caret ml-1 align-baseline" /> : null}</span>
-              <span className="text-code ml-auto text-muted-foreground" style={{ fontSize: 10 }}>{s.detail}</span>
-            </li>
-          );
-        })}
-      </ol>
-    </main>
-  );
-}
 
-/** 6 agent nodes — C-01 at the core, the five specialists around it. */
-function AgentGraph({ tick }: { tick: number }) {
-  const cx = 210, cy = 140, R = 105;
-  const ring = AGENTS.filter((a) => a.code !== "C-01").map((a, i) => {
-    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
-    return { code: a.code, x: cx + Math.cos(angle) * R, y: cy + Math.sin(angle) * R, wakeAt: 1900 + i * 180 };
-  });
-  const coreOn = tick >= 1400;
-  return (
-    <svg viewBox="0 0 420 280" className="h-[280px] w-[420px]" role="img" aria-label="Agent cluster initialising">
-      {[45, 78, 108].map((r, i) => (<circle key={r} cx={cx} cy={cy} r={r} fill="none" stroke="var(--border-op)" strokeWidth={0.7} strokeDasharray="2 5" opacity={0.55 - i * 0.12} />))}
-      {ring.map((a) => {
-        const on = tick >= a.wakeAt;
-        return <line key={`l-${a.code}`} x1={cx} y1={cy} x2={a.x} y2={a.y} stroke="var(--operational)" strokeWidth={1.1} strokeDasharray="140" strokeDashoffset={on ? 0 : 140} opacity={on ? 0.6 : 0.12} style={{ transition: "stroke-dashoffset 520ms var(--ease-out), opacity 520ms" }} />;
-      })}
-      <circle cx={cx} cy={cy} r={13} fill={coreOn ? "var(--operational)" : "var(--muted-foreground)"} style={{ transition: "fill 400ms" }} />
-      <text x={cx} y={cy + 30} textAnchor="middle" style={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: "var(--muted-foreground)" }}>C-01</text>
-      {ring.map((a) => {
-        const on = tick >= a.wakeAt;
-        return (
-          <g key={a.code} style={{ transition: "opacity 400ms", opacity: on ? 1 : 0.32 }}>
-            <circle cx={a.x} cy={a.y} r={on ? 8 : 4} fill={on ? "var(--operational)" : "var(--muted-foreground)"} style={{ transition: "r 480ms var(--ease-out), fill 480ms" }} />
-            <text x={a.x} y={a.y - 14} textAnchor="middle" style={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: on ? "var(--foreground)" : "var(--muted-foreground)" }}>{a.code}</text>
-          </g>
-        );
-      })}
-    </svg>
+      {/* the one reusable orchestration surface → journey_events */}
+      <div className="w-full" style={{ maxWidth: 460 }}>
+        <OrchestrationStream events={events} status={status} elapsed={elapsed} completeLabel="Lifecycle complete" />
+      </div>
+
+      {status === "complete" ? (
+        <button
+          onClick={onDone}
+          className="spring-in mt-6 rounded-lg px-4 py-2.5 font-medium transition-transform duration-150 hover:-translate-y-px"
+          style={{ background: "var(--operational)", color: "#0a1a12", fontSize: 13.5 }}
+        >
+          Open artifact library →
+        </button>
+      ) : null}
+    </main>
   );
 }
 
