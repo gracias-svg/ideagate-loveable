@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { PRODUCT_IDEA } from "@/lib/desk-data";
+import { OrchestrationStream } from "@/components/orchestration-stream";
+import { LIFECYCLE_SCRIPT, useOrchestrationRun } from "@/lib/orchestration";
 
 /* ═══════════════════════════════════════════════════════════════
  *  GENERATION EXPERIENCE — Studio center during an active run.
@@ -19,21 +21,6 @@ export const LIFECYCLE_STAGES = [
 
 const AGO = ["3m ago", "3m ago", "2m ago", "2m ago", "2m ago", "1m ago", "1m ago", "45s ago", "30s ago", "22s ago", "18s ago", "12s ago", "9s ago", "5s ago", "2s ago"];
 
-/* → agent_runs.tool_calls — a continuous stream, never a growing list */
-const TOOL_FEED = [
-  { icon: "📄", text: "Research Agent · Reading discovery artifact" },
-  { icon: "🔍", text: "QA Agent · Validating assumptions" },
-  { icon: "🔍", text: "Research Agent · Synthesising findings" },
-  { icon: "✏", text: "Architecture Agent · Generating system design…" },
-  { icon: "📄", text: "Architecture Agent · Reading PRD constraints" },
-  { icon: "🔍", text: "QA Agent · Cross-checking data model" },
-  { icon: "✏", text: "Architecture Agent · Drafting service boundaries" },
-  { icon: "📄", text: "Research Agent · Reading validation notes" },
-];
-
-/* opacity ramp: oldest dissolving out → newest fully lit */
-const ROW_OPACITY = [0.1, 0.4, 0.8, 1];
-
 export type RunState = "running" | "complete" | "paused";
 
 export function GenerationExperience({
@@ -48,6 +35,7 @@ export function GenerationExperience({
   const done = state === "complete" ? LIFECYCLE_STAGES.length : current;
   const pct = Math.round((done / LIFECYCLE_STAGES.length) * 100);
   const [listOpen, setListOpen] = useState(true);
+  const { events, elapsed } = useOrchestrationRun(LIFECYCLE_SCRIPT, { status: state, intervalMs: 2600, loop: true });
 
   return (
     <main className="relative min-w-0 flex-1 overflow-y-auto px-8 py-12" style={{ maxHeight: "calc(100vh - 3.5rem)" }}>
@@ -59,8 +47,8 @@ export function GenerationExperience({
           </h1>
           <div className="text-code mt-2" style={{ fontSize: 11, color: "var(--muted-foreground)", opacity: 0.6 }}>
             {state === "complete"
-              ? `Stage 15 of 15 · Complete`
-              : `Stage ${current + 1} of 15 · ${LIFECYCLE_STAGES[current]}`}
+              ? "Every lifecycle step complete"
+              : `Now working on ${LIFECYCLE_STAGES[current]}`}
           </div>
         </header>
 
@@ -91,8 +79,14 @@ export function GenerationExperience({
           </div>
         </section>
 
-        {/* LAYER 3 — agent tool group → agent_runs.tool_calls */}
-        <ToolGroup state={state} />
+        {/* LAYER 3 — the universal orchestration stream → journey_events */}
+        <OrchestrationStream
+          className="mt-4"
+          events={events}
+          status={state}
+          elapsed={elapsed}
+          completeLabel="Lifecycle complete"
+        />
 
         {state === "complete" ? (
           <button
