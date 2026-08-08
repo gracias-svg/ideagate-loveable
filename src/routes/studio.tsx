@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GenerationExperience, type RunState } from "@/components/generation-experience";
+import { FloatingOrchestrationStream } from "@/components/orchestration-stream";
+import { IMPROVEMENT_SCRIPT, useOrchestrationRun, type RunStatus } from "@/lib/orchestration";
 import {
   AGENTS, ARTIFACTS, CATEGORY_COLOR, CONFIDENCE_SCORE, MODELS,
   PROJECT_NAME, WORKSPACE_PATH, bodyOf, categoryOf,
@@ -44,6 +46,19 @@ function StudioPage() {
   const [activeSection, setActiveSection] = useState<string | null>(null);
   /* → journey_runs.status — Studio swaps the editor for the run surface */
   const [run, setRun] = useState<RunState | "idle">("running");
+  /* → agent_runs — a single-artifact improvement, same orchestration card */
+  const [improve, setImprove] = useState<RunStatus>("idle");
+  const improveRun = useOrchestrationRun(IMPROVEMENT_SCRIPT, { status: improve, intervalMs: 1800 });
+  useEffect(() => {
+    if (improve !== "running") return;
+    const done = setTimeout(() => setImprove("complete"), IMPROVEMENT_SCRIPT.length * 1800 + 300);
+    return () => clearTimeout(done);
+  }, [improve]);
+  useEffect(() => {
+    if (improve !== "complete") return;
+    const t = setTimeout(() => setImprove("idle"), 4000);
+    return () => clearTimeout(t);
+  }, [improve]);
 
   return (
     <div className="dark relative flex min-h-screen" style={{ background: "var(--surface-op-sunken)", color: "var(--foreground)" }}>
@@ -58,9 +73,17 @@ function StudioPage() {
           ) : (
             <GenerationExperience current={8} state={run} onOpenLibrary={() => setRun("idle")} />
           )}
-          <IntelligencePanel onRun={() => setDirty(true)} />
+          <IntelligencePanel onRun={() => { setDirty(true); setImprove("running"); }} />
         </div>
       </div>
+      {improve !== "idle" ? (
+        <FloatingOrchestrationStream
+          events={improveRun.events}
+          status={improve}
+          elapsed={improveRun.elapsed}
+          completeLabel="Improvement ready"
+        />
+      ) : null}
     </div>
   );
 }
