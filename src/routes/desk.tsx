@@ -558,15 +558,6 @@ function GoalRow({ selected, onSelect, label, consequence, icon, locked, dense }
 
 /* ─── STATE 1.5 · INITIALIZING ───────────────────────────────────────── */
 
-const INIT_STEPS = [
-  { t: 400, label: "provisioning workspace", detail: WORKSPACE_PATH },
-  { t: 900, label: "resolving prompt preset", detail: "full-lifecycle" },
-  { t: 1400, label: "waking coordinator", detail: "C-01 online" },
-  { t: 1900, label: "dispatching agents", detail: "R-01 · S-01 · U-01 · A-01 · Q-01" },
-  { t: 2500, label: "seeding artifact scaffolds", detail: "15 placeholders written" },
-  { t: 3100, label: "opening event stream", detail: "journey_events → live" },
-];
-
 function Initializing({ idea, onDone }: { idea: string; onDone: () => void }) {
   /* → journey_runs.status — the run stays live until the library is ready */
   const [status, setStatus] = useState<RunStatus>("running");
