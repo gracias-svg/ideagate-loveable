@@ -173,7 +173,7 @@ function LogoGlyph() {
 }
 
 function DeskTopbar({ phase, onOpenPalette, onNewIdea }: { phase: Phase; onOpenPalette: () => void; onNewIdea: () => void }) {
-  const status = phase === "empty" ? "READY" : phase === "initializing" ? "INITIALISING" : "RUNNING";
+  const status = phase === "empty" ? "READY" : phase === "initializing" ? "BUILDING" : "LIVE";
   const statusColor = phase === "empty" ? "var(--info)" : "var(--operational)";
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b px-8" style={{ background: "var(--surface-op)", borderColor: "var(--border-op)" }}>
